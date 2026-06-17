@@ -284,17 +284,22 @@ def _build_conversations():
         conversation_key = message.conversation_key
         cliente = message.cliente
 
+        cedula = cliente.cedula if cliente else conversation_key
+        if cedula == SUPERADMIN_CEDULA or conversation_key == SUPERADMIN_CEDULA:
+            continue
+
         if conversation_key not in conversations:
             conversations[conversation_key] = {
                 'conversation_key': conversation_key,
                 'client_name': _conversation_label(cliente) if cliente else conversation_key,
                 'client_summary': _client_summary(cliente) if cliente else conversation_key,
-                'cedula': cliente.cedula if cliente else conversation_key,
+                'cedula': cedula,
                 'initials': _client_initials(cliente) if cliente else conversation_key[:2].upper(),
                 'avatar': _client_avatar(cliente) if cliente else '👤',
                 'last_time': _format_message_time(message.created_at),
                 'last_message': message.message,
                 'messages': [],
+                'last_sort': message.created_at,
             }
 
         conversations[conversation_key]['messages'].append({
@@ -306,8 +311,12 @@ def _build_conversations():
         })
         conversations[conversation_key]['last_time'] = _format_message_time(message.created_at)
         conversations[conversation_key]['last_message'] = message.message
+        conversations[conversation_key]['last_sort'] = message.created_at
 
-    return list(conversations.values())
+    ordered = sorted(conversations.values(), key=lambda item: item['last_sort'], reverse=True)
+    for conversation in ordered:
+        conversation.pop('last_sort', None)
+    return ordered
 
 
 def login_view(request):
