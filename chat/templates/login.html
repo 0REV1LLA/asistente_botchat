@@ -1,0 +1,72 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmaLuz | Acceso</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'chat/css/login.css' %}">
+</head>
+<body>
+    <main class="page-shell">
+        <section class="login-card">
+            <div class="brand-block">
+                <div class="brand-logo">
+                    <img src="{% static 'chat/img/farmaluz-logo.png' %}" alt="FarmaLuz">
+                </div>
+                <div>
+                    <p class="eyebrow">FarmaLuz</p>
+                    <h1>Acceso seguro</h1>
+                    <p class="subtitle">{{ assistant_emoji|default:'💁‍♀️' }} Luzy te da la bienvenida para continuar con tu acceso.</p>
+                </div>
+            </div>
+
+            {% if registration_success %}
+            <div class="success-box" role="status">
+                Tu registro fue guardado. Ahora ingresa tu cédula para entrar al sistema.
+            </div>
+            {% endif %}
+
+            <a class="secondary-link secondary-link-top" href="{% url 'chat:registro' %}">Crear registro</a>
+
+            <form id="loginForm" class="login-form" method="post" action="{% url 'chat:login' %}" data-login-url="{% url 'chat:login' %}">
+                {% csrf_token %}
+                <label class="field">
+                    <span>Cédula</span>
+                    <div class="input-wrap">
+                        <i class="fa-solid fa-id-card"></i>
+                        <input type="text" name="cedula" id="cedula" placeholder="Ej: 12345678" autocomplete="username" value="{{ prefill_cedula|default:'' }}" required>
+                    </div>
+                </label>
+
+                <p class="hint">Si todavía no te registraste, primero crea tu perfil para que podamos reconocer tus datos con seguridad.</p>
+
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    <span>Ingresar</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+
+                {% if error_message %}
+                <div class="error-box" id="errorBox">{{ error_message }}</div>
+                {% else %}
+                <div class="error-box" id="errorBox" hidden></div>
+                {% endif %}
+            </form>
+        </section>
+    </main>
+
+    <div class="loading-overlay" id="loadingOverlay" hidden style="display: none;" aria-live="polite" aria-busy="true">
+        <div class="loading-card">
+            <div class="spinner"></div>
+            <h2>Cargando tu acceso</h2>
+            <p>Validando credenciales y preparando tu pantalla.</p>
+        </div>
+    </div>
+
+    <script src="{% static 'chat/js/login.js' %}?v=2" defer></script>
+</body>
+</html>

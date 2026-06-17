@@ -1,0 +1,110 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmaLuz | Panel SuperAdmin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'chat/css/admin_dashboard.css' %}">
+</head>
+<body>
+    <main class="dashboard-shell">
+        <aside class="sidebar">
+            <div class="sidebar-top">
+                <div class="brand-block">
+                    <div class="brand-logo">
+                        {% if brand_logo_url %}
+                        <img src="{{ brand_logo_url }}" alt="FarmaLuz">
+                        {% else %}
+                        <span>FL</span>
+                        {% endif %}
+                    </div>
+                    <div class="brand-copy">
+                        <p class="eyebrow">FarmaLuz</p>
+                        <h1>Panel SuperAdmin</h1>
+                        <p class="brand-subtitle">Vista de {{ assistant_emoji|default:'💁‍♀️' }} {{ assistant_name|default:'Luzy' }}</p>
+                    </div>
+                </div>
+                <div class="sidebar-actions">
+                    <div class="metric-pill metric-count" title="Conversaciones totales">
+                        <i class="fa-solid fa-comments"></i>
+                        <strong>{{ total_conversations }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-summary">
+                <div>
+                    <span class="summary-label">Chats totales</span>
+                    <strong>{{ total_conversations }}</strong>
+                </div>
+                <div>
+                    <span class="summary-label">Modo</span>
+                    <strong>Solo lectura</strong>
+                </div>
+            </div>
+
+            <div class="conversation-list" id="conversationList" aria-label="Lista de conversaciones"></div>
+        </aside>
+
+        <section class="content-panel">
+            <header class="panel-header">
+                <div>
+                    <p class="eyebrow">Historial real</p>
+                    <h2 id="activeConversationTitle">Selecciona una conversación</h2>
+                    <p class="panel-subtitle" id="activeConversationSubtitle">La perspectiva muestra a {{ assistant_name|default:'Luzy' }} respondiendo por la farmacia.</p>
+                </div>
+                <div class="panel-actions">
+                    <div class="panel-badge">
+                        <i class="fa-solid fa-eye"></i>
+                        <span>Vista de monitoreo</span>
+                    </div>
+                    <a class="logout-link logout-inline" href="{% url 'chat:logout' %}">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span>Cerrar sesión</span>
+                    </a>
+                </div>
+            </header>
+
+            <div class="empty-state" id="emptyState" {% if conversations %}hidden{% endif %}>
+                <i class="fa-regular fa-comments"></i>
+                <h3>No hay conversaciones registradas todavía.</h3>
+                <p>Cuando los clientes conversen con el bot, el historial aparecerá aquí automáticamente.</p>
+            </div>
+
+            <article class="chat-thread" id="chatThread" {% if not conversations %}hidden{% endif %}>
+                <div class="thread-meta">
+                    <div>
+                        <span class="meta-label">Cliente</span>
+                        <strong id="threadClientName"></strong>
+                    </div>
+                    <div>
+                        <span class="meta-label">Cédula</span>
+                        <strong id="threadClientCedula"></strong>
+                    </div>
+                </div>
+
+                <div class="messages" id="threadMessages"></div>
+
+                <footer class="read-only-footer">
+                    <div class="readonly-copy">
+                        <i class="fa-solid fa-lock"></i>
+                        <span>El panel está bloqueado para evitar respuestas o ediciones.</span>
+                    </div>
+                    <div class="input-row">
+                        <input type="text" placeholder="Vista de solo lectura" disabled aria-disabled="true">
+                        <button type="button" disabled aria-disabled="true">Enviar</button>
+                    </div>
+                </footer>
+            </article>
+        </section>
+    </main>
+
+    {{ conversations|json_script:"conversations-data" }}
+    <script src="{% static 'chat/js/admin_dashboard.js' %}" defer></script>
+</body>
+</html>

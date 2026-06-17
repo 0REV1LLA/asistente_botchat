@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmaLuz | Asistente</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'chat/css/chat.css' %}">
+</head>
+<body>
+    <main class="chat-shell">
+        <section class="chat-card">
+            <header class="chat-hero">
+                <div class="brand-block">
+                    <div class="brand-logo">
+                        <img src="{% static 'chat/img/farmaluz-logo.png' %}" alt="FarmaLuz">
+                    </div>
+                    <div>
+                        <p class="eyebrow">FarmaLuz</p>
+                        <h1>{{ assistant_emoji|default:'💁‍♀️' }} Luzy te saluda, {{ cliente_display_name|default:cliente_nombre|default:'Cliente' }}</h1>
+                        <p class="subtitle">Tu conversación continúa desde donde la dejaste y puedes revisar ejemplos de uso en cualquier momento.</p>
+                    </div>
+                </div>
+
+                <div class="hero-actions">
+                    <div class="assistant-pill">
+                        <span class="assistant-avatar">{{ assistant_emoji|default:'💁‍♀️' }}</span>
+                        <span>{{ assistant_name|default:'Luzy' }}</span>
+                    </div>
+                    <div class="session-pill">
+                        <i class="fa-solid fa-shield-heart"></i>
+                        <span>Sesión activa</span>
+                    </div>
+                    <a class="ghost-link" href="{% url 'chat:logout' %}">Cerrar sesión</a>
+                </div>
+            </header>
+
+            <div class="chat-layout">
+                <aside class="command-panel">
+                    <div class="panel-card accent-card">
+                        <p class="eyebrow">Atajos</p>
+                        <h2>Comandos rápidos</h2>
+                        <ul class="command-list">
+                            {% for command, description in quick_commands %}
+                            <li><strong>{{ command }}</strong> - {{ description }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="panel-card muted-card">
+                        <p class="eyebrow">Continuidad</p>
+                        <p>Este historial se guarda por cédula para que puedas volver y seguir la misma conversación.</p>
+                        <p class="mini-example">Ejemplo rápido: <strong>buscar diclofenac</strong> o <strong>disponible diclofenac</strong>.</p>
+                    </div>
+                </aside>
+
+                <section class="conversation-panel">
+                    <button type="button" class="scroll-bottom-btn" id="scrollToBottomBtn" aria-label="Bajar al final del chat">
+                        <i class="fa-solid fa-arrow-down"></i>
+                    </button>
+                    <div class="messages" id="messages"></div>
+
+                    <div class="input-area">
+                        <div class="composer-wrap">
+                            <input type="text" id="messageInput" placeholder="Escribe tu mensaje..." autocomplete="off">
+                            <button type="button" onclick="sendMessage()">Enviar</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    {{ chat_history|json_script:"chat-history-data" }}
+    <script src="{% static 'chat/js/chat.js' %}?v=2"></script>
+</body>
+</html>
