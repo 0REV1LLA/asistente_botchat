@@ -59,9 +59,6 @@
                 </aside>
 
                 <section class="conversation-panel">
-                    <button type="button" class="scroll-bottom-btn" id="scrollToBottomBtn" aria-label="Bajar al final del chat">
-                        <i class="fa-solid fa-arrow-down"></i>
-                    </button>
                     <div class="messages" id="messages"></div>
 
                     <div class="input-area">
@@ -74,6 +71,10 @@
             </div>
         </section>
     </main>
+
+    <button type="button" class="scroll-bottom-btn" id="scrollToBottomBtn" aria-label="Bajar al final del chat">
+        <i class="fa-solid fa-arrow-down"></i>
+    </button>
 
     {{ chat_history|json_script:"chat-history-data" }}
     <script src="{% static 'chat/js/chat.js' %}?v=2"></script>
