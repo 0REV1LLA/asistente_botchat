@@ -1,0 +1,17 @@
+Django==5.2.14
+Uso: framework principal del proyecto; maneja vistas, rutas, sesiones, plantillas y ORM.
+
+django-simple-chatbot==0.0.9
+Uso: dependencia auxiliar del ecosistema del chatbot; queda como soporte del sistema de mensajería.
+
+djangorestframework==3.17.1
+Uso: útil si se exponen endpoints API o se amplían respuestas JSON del chat.
+
+nltk==3.9.4
+Uso: soporte para procesamiento de lenguaje natural si se agregan reglas o análisis de texto.
+
+python-dotenv==1.2.2
+Uso: carga variables de entorno desde el archivo .env para configuración local.
+
+mysqlclient==2.2.8 (opcional)
+Uso: conecta el proyecto con MySQL si se cambia DB_ENGINE a django.db.backends.mysql.

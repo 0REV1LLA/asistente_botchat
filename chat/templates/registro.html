@@ -1,0 +1,121 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmaLuz | Registro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'chat/css/login.css' %}">
+</head>
+<body>
+    <main class="page-shell auth-grid-shell">
+        <section class="login-card auth-card">
+            <div class="brand-block">
+                <div class="brand-logo">
+                    <img src="{% static 'chat/img/farmaluz-logo.png' %}" alt="FarmaLuz">
+                </div>
+                <div>
+                    <p class="eyebrow">FarmaLuz</p>
+                    <h1>Registro de cliente</h1>
+                    <p class="subtitle">{{ assistant_emoji|default:'💁‍♀️' }} Lucy guarda tus datos para que después puedas entrar con tu cédula.</p>
+                </div>
+            </div>
+
+            <div class="assistant-note">
+                <span class="assistant-pill">{{ assistant_emoji|default:'💁‍♀️' }} Lucy</span>
+                <p>Completa tu ficha antes del acceso. Luego irás al inicio de sesión para validar tu cédula.</p>
+            </div>
+
+            <a class="secondary-link secondary-link-top" href="{% url 'chat:login' %}">Ya tengo registro</a>
+
+            <form class="login-form register-form" method="post" action="{% url 'chat:registro' %}">
+                {% csrf_token %}
+                <div class="form-grid">
+                    <label class="field">
+                        <span>Nombre</span>
+                        <div class="input-wrap">
+                            <i class="fa-solid fa-user"></i>
+                            <input type="text" name="nombre" placeholder="Ej: Luis" value="{{ form_values.nombre|default:'' }}" required>
+                        </div>
+                    </label>
+                    <label class="field">
+                        <span>Apellido</span>
+                        <div class="input-wrap">
+                            <i class="fa-solid fa-user-tag"></i>
+                            <input type="text" name="apellido" placeholder="Ej: Revilla" value="{{ form_values.apellido|default:'' }}" required>
+                        </div>
+                    </label>
+                    <label class="field field-full">
+                        <span>Cédula</span>
+                        <div class="input-wrap">
+                            <i class="fa-solid fa-id-card"></i>
+                            <input type="text" name="cedula" placeholder="Ej: 31437422" value="{{ form_values.cedula|default:'' }}" required>
+                        </div>
+                    </label>
+                    <label class="field field-full">
+                        <span>Correo</span>
+                        <div class="input-wrap">
+                            <i class="fa-solid fa-envelope"></i>
+                            <input type="email" name="correo" placeholder="Ej: usuario@correo.com" value="{{ form_values.correo|default:'' }}" required>
+                        </div>
+                    </label>
+                    <label class="field field-full">
+                        <span>Patología</span>
+                        <div class="input-wrap">
+                            <i class="fa-solid fa-notes-medical"></i>
+                            <input type="text" name="patologia" placeholder="Ej: hipertensión" value="{{ form_values.patologia|default:'' }}" required>
+                        </div>
+                    </label>
+                    <label class="field field-full">
+                        <span>Dirección</span>
+                        <div class="input-wrap">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <input type="text" name="direccion" placeholder="Ej: Av. Principal, sector Centro" value="{{ form_values.direccion|default:'' }}" required>
+                        </div>
+                    </label>
+                    <label class="field field-full">
+                        <span>Teléfono</span>
+                        <div class="input-wrap">
+                            <i class="fa-solid fa-phone"></i>
+                            <input type="tel" name="n_telefono" placeholder="Ej: 0412-1234567" value="{{ form_values.n_telefono|default:'' }}" required>
+                        </div>
+                    </label>
+                    <label class="field field-full">
+                        <span>Fecha de nacimiento</span>
+                        <div class="input-wrap">
+                            <i class="fa-solid fa-cake-candles"></i>
+                            <input type="date" name="fecha_nacimiento" value="{{ form_values.fecha_nacimiento|default:'' }}" required>
+                        </div>
+                    </label>
+                    <label class="field field-full">
+                        <span>Género</span>
+                        <div class="input-wrap select-wrap">
+                            <i class="fa-solid fa-venus-mars"></i>
+                            <select name="genero" required>
+                                <option value="">Selecciona</option>
+                                <option value="hombre" {% if form_values.genero == 'hombre' %}selected{% endif %}>Hombre</option>
+                                <option value="mujer" {% if form_values.genero == 'mujer' %}selected{% endif %}>Mujer</option>
+                            </select>
+                        </div>
+                    </label>
+                </div>
+
+                <p class="hint">Después de registrarte, el sistema te enviará al acceso para pedir solo tu cédula.</p>
+
+                <button type="submit" class="submit-btn">
+                    <span>Guardar registro</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+
+                {% if error_message %}
+                <div class="error-box">{{ error_message }}</div>
+                {% endif %}
+            </form>
+        </section>
+    </main>
+</body>
+</html>

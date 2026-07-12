@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmaLuz | Asistente</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'chat/css/chat.css' %}?v=4">
+</head>
+<body>
+    <main class="chat-shell">
+        <section class="chat-card">
+            <header class="chat-hero">
+                <div class="brand-block">
+                    <div class="brand-logo">
+                        <img src="{% static 'chat/img/farmaluz-logo.png' %}" alt="FarmaLuz">
+                    </div>
+                    <div>
+                        <p class="eyebrow">FarmaLuz</p>
+                        <h1>{{ assistant_emoji|default:'💁‍♀️' }} Lucy te saluda, {{ cliente_display_name|default:cliente_nombre|default:'Cliente' }}</h1>
+                        <p class="subtitle">Tu conversación continúa desde donde la dejaste y puedes revisar ejemplos de uso en cualquier momento.</p>
+                    </div>
+                </div>
+
+                <div class="hero-actions">
+                    <div class="session-pill">
+                        <i class="fa-solid fa-shield-heart"></i>
+                        <span>Sesión activa</span>
+                    </div>
+                    <a class="ghost-link js-logout-link" href="{% url 'chat:logout' %}">Cerrar sesión</a>
+                </div>
+            </header>
+
+            <div class="chat-layout">
+                <aside class="command-panel">
+                    <div class="panel-card accent-card">
+                        <p class="eyebrow">Atajos</p>
+                        <h2>Comandos rápidos</h2>
+                        <ul class="command-list">
+                            {% for command, description in quick_commands %}
+                            <li><strong>{{ command }}</strong> - {{ description }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="panel-card muted-card">
+                        <p class="eyebrow">Continuidad</p>
+                        <p>Este historial se guarda por cédula para que puedas volver y seguir la misma conversación.</p>
+                    </div>
+                    <div class="panel-card muted-card whatsapp-card">
+                        <p class="eyebrow">Ayuda rápida</p>
+                        <a class="whatsapp-link" href="https://wa.me/584265601779" target="_blank" rel="noopener noreferrer" aria-label="Contactar por WhatsApp">
+                            <div class="whatsapp-icon-bubble">
+                                <i class="fa-brands fa-whatsapp"></i>
+                            </div>
+                            <div class="whatsapp-text">
+                                <strong>Escríbenos por WhatsApp</strong>
+                                <span>Para más información o concretar la compra, presione aquí</span>
+                            </div>
+                        </a>
+                    </div>
+                </aside>
+
+                <section class="conversation-panel">
+                    <button type="button" class="scroll-bottom-btn" id="scrollToBottomBtn" aria-label="Bajar al final del chat">
+                        <i class="fa-solid fa-arrow-down"></i>
+                    </button>
+                    <div class="status-banner {% if cliente_bloqueado %}blocked{% else %}active{% endif %}" role="status">
+                        <i class="fa-solid {% if cliente_bloqueado %}fa-ban{% else %}fa-shield-heart{% endif %}"></i>
+                        <span>{% if cliente_bloqueado %}Usuario bloqueado{% else %}Chat activo{% endif %}</span>
+                    </div>
+                    <div class="messages" id="messages"></div>
+
+                    <div class="input-area {% if cliente_bloqueado %}is-disabled{% endif %}">
+                        <div class="composer-wrap {% if cliente_bloqueado %}single-control{% endif %}">
+                            <input type="text" id="messageInput" placeholder="{% if cliente_bloqueado %}Usuario bloqueado{% else %}Escribe tu mensaje...{% endif %}" autocomplete="off" {% if cliente_bloqueado %}disabled aria-disabled="true"{% endif %}>
+                            {% if not cliente_bloqueado %}
+                            <button type="button" id="sendMessageBtn" onclick="sendMessage()">Enviar</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    <div class="confirm-overlay" id="confirmOverlay" hidden aria-hidden="true">
+        <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+            <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <h2 id="confirmTitle">Confirmar acción</h2>
+            <p id="confirmMessage">¿Deseas continuar?</p>
+            <div class="confirm-actions">
+                <button type="button" class="confirm-button cancel" data-confirm-cancel>Cancelar</button>
+                <button type="button" class="confirm-button accept" data-confirm-accept>Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    {{ chat_history|json_script:"chat-history-data" }}
+    <script src="{% static 'chat/js/chat.js' %}?v=2"></script>
+</body>
+</html>
