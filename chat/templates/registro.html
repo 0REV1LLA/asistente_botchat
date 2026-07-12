@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FarmaLuz | Registro</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'chat/img/favicon.ico' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -23,11 +24,6 @@
                     <h1>Registro de cliente</h1>
                     <p class="subtitle">{{ assistant_emoji|default:'💁‍♀️' }} Lucy guarda tus datos para que después puedas entrar con tu cédula.</p>
                 </div>
-            </div>
-
-            <div class="assistant-note">
-                <span class="assistant-pill">{{ assistant_emoji|default:'💁‍♀️' }} Lucy</span>
-                <p>Completa tu ficha antes del acceso. Luego irás al inicio de sesión para validar tu cédula.</p>
             </div>
 
             <a class="secondary-link secondary-link-top" href="{% url 'chat:login' %}">Ya tengo registro</a>

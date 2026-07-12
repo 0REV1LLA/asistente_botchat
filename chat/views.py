@@ -505,7 +505,7 @@ def admin_dashboard_view(request):
 
 def logout_view(request):
     request.session.flush()
-    return redirect('chat:registro')
+    return redirect('chat:login')
 
 
 def toggle_bloqueo_cliente(request, cliente_id):

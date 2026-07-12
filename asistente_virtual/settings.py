@@ -124,6 +124,15 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# Configuración para Gmail 
+SITE_NAME = "Inventario Farmaluz"  # Nombre que aparecerá en el correo
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'farmaluz213@gmail.com'  # Cambia esto
+EMAIL_HOST_PASSWORD = 'mzun urcw zxyl lavv'  # Si usas Gmail, usa "Contraseña de aplicación"
+
 # Internationalization
 LANGUAGE_CODE = 'es-es'
 TIME_ZONE = 'America/Caracas'
