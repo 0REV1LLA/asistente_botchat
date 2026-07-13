@@ -125,7 +125,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Configuración para Gmail 
-SITE_NAME = "Inventario Farmaluz"  # Nombre que aparecerá en el correo
+SITE_NAME = "Asistente Farmaluz"  # Nombre que aparecerá en el correo
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587

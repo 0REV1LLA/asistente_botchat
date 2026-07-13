@@ -33,6 +33,7 @@
             {% endif %}
 
             <a class="secondary-link secondary-link-top" href="{% url 'chat:registro' %}">Crear registro</a>
+            <a class="secondary-link secondary-link-top" href="{% url 'chat:password_reset' %}">Recuperar Cédula</a>
 
             <form id="loginForm" class="login-form" method="post" action="{% url 'chat:login' %}" data-login-url="{% url 'chat:login' %}">
                 {% csrf_token %}

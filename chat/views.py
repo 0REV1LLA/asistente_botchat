@@ -1,10 +1,19 @@
 import json
+import secrets
+import traceback
 from collections import OrderedDict
+from datetime import timedelta
 
+from django.conf import settings
+from django.core import signing
+from django.core.mail import send_mail
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.encoding import force_bytes, force_str
 from django.utils.timezone import localtime
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.csrf import csrf_exempt
 from django.templatetags.static import static
 
@@ -13,6 +22,8 @@ from .models import Almacen, ChatMessage, Clientes, Productos
 SUPERADMIN_CEDULA = 'SuperAdminFarmaLuz'
 BOT_NAME = 'Lucy'
 BOT_EMOJI = '💁‍♀️'
+PASSWORD_RESET_SESSION_KEY = 'password_reset_request'
+PASSWORD_RESET_MAX_AGE = 60 * 60 * 24  # 24 horas
 
 RAPID_COMMANDS = [
     ('productos', 'Ver la lista de productos'),
@@ -38,7 +49,6 @@ def _safe_product_list(queryset, limit=None):
             return list(queryset[:limit])
         return list(queryset)
     except Exception as e:
-        # Imprime el error real en la terminal para que sepas qué columna o tabla de MySQL falla
         print(f"--- ERROR CRÍTICO EN CONSULTA DE PRODUCTOS ---")
         print(str(e))
         print(f"----------------------------------------------")
@@ -58,6 +68,126 @@ def _ensure_superadmin_exists():
     return cliente
 
 
+def _auth_brand_context(extra=None):
+    context = {
+        'assistant_name': BOT_NAME,
+        'assistant_emoji': BOT_EMOJI,
+    }
+    if extra:
+        context.update(extra)
+    return context
+
+
+def _password_reset_session_payload(uidb64, token, correo):
+    return {
+        'uidb64': uidb64,
+        'token': token,
+        'correo': correo,
+        'expires_at': int((timezone.now() + timedelta(seconds=PASSWORD_RESET_MAX_AGE)).timestamp()),
+    }
+
+
+def _store_password_reset_state(request, uidb64, token, correo):
+    request.session[PASSWORD_RESET_SESSION_KEY] = _password_reset_session_payload(uidb64, token, correo)
+    request.session.set_expiry(PASSWORD_RESET_MAX_AGE)
+    request.session.modified = True
+
+
+def _clear_password_reset_state(request):
+    request.session.pop(PASSWORD_RESET_SESSION_KEY, None)
+    request.session.modified = True
+
+
+def _get_password_reset_state(request):
+    return request.session.get(PASSWORD_RESET_SESSION_KEY)
+
+
+def _build_reset_signature(uidb64, token):
+    """Construye una firma digital para el enlace de recuperación"""
+    payload = {
+        'uidb64': uidb64,
+        'token': token,
+    }
+    return signing.dumps(payload, salt='password-reset')
+
+
+def _decode_reset_signature(signed_token):
+    """Decodifica y verifica la firma digital"""
+    try:
+        payload = signing.loads(signed_token, salt='password-reset', max_age=PASSWORD_RESET_MAX_AGE)
+        
+        if not isinstance(payload, dict):
+            raise signing.BadSignature('Payload inválido')
+        
+        if 'uidb64' not in payload or 'token' not in payload:
+            raise signing.BadSignature('Faltan campos requeridos')
+        
+        return payload
+        
+    except signing.BadSignature as e:
+        print(f"❌ BadSignature: {e}")
+        raise
+    except signing.SignatureExpired as e:
+        print(f"❌ SignatureExpired: {e}")
+        raise
+    except Exception as e:
+        print(f"❌ Error en decode: {e}")
+        raise signing.BadSignature(f'Error al decodificar: {e}')
+
+
+def _cliente_from_uidb64(uidb64):
+    try:
+        cliente_id = force_str(urlsafe_base64_decode(uidb64))
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+    if not str(cliente_id).isdigit():
+        return None
+
+    return Clientes.objects.filter(cliente_id=int(cliente_id)).first()
+
+
+def _password_reset_form_context(**extra):
+    context = _auth_brand_context()
+    context.update(extra)
+    return context
+
+
+def _send_reset_email(cliente, reset_url):
+    """Envía el correo de recuperación"""
+    subject = 'Recuperación de cédula - FarmaLuz'
+    
+    lines = [
+        f'Hola {cliente.nombre or "cliente"},',
+        '',
+        'Recibimos una solicitud para recuperar tu cédula en FarmaLuz.',
+        '',
+        'Para restablecer tu cédula, haz clic en el siguiente enlace:',
+        reset_url,
+        '',
+        'Este enlace es válido por 24 horas.',
+        '',
+        'Si no realizaste esta solicitud, ignora este correo.',
+        '',
+        'Saludos,',
+        'Equipo FarmaLuz'
+    ]
+    
+    try:
+        send_mail(
+            subject,
+            '\n'.join(lines),
+            settings.EMAIL_HOST_USER,
+            [cliente.correo],
+            fail_silently=False,
+        )
+        print(f"✅ Correo enviado a: {cliente.correo}")
+        print(f"🔗 Enlace: {reset_url}")
+    except Exception as e:
+        print(f"❌ Error al enviar correo: {e}")
+        raise
+
+
 class ChatBotFarmaluz:
     def procesar_mensaje(self, mensaje):
         mensaje = mensaje.lower().strip()
@@ -74,7 +204,6 @@ Puedo ayudarte a revisar productos, precios y stock de forma rápida.
 
 Escribe `ayuda` para ver todos los comandos rápidos."""
         
-        # Comando: LISTAR PRODUCTOS
         if mensaje in ['productos', 'lista', 'ver productos']:
             productos = _safe_product_list(Productos.objects.all(), 15)
             if productos is None:
@@ -87,7 +216,6 @@ Escribe `ayuda` para ver todos los comandos rápidos."""
                 return respuesta
             return "No hay productos registrados en la base de datos."
         
-        # Comando: PRECIO [producto]
         if mensaje.startswith('precio '):
             producto_nombre = mensaje.replace('precio ', '').strip()
             if not producto_nombre:
@@ -104,7 +232,6 @@ Escribe `ayuda` para ver todos los comandos rápidos."""
                 return respuesta
             return f"❌ No encontré '{producto_nombre}'. Usa `productos` para ver la lista."
         
-        # Comando: DISPONIBLE [producto]
         if mensaje.startswith('disponible '):
             producto_nombre = mensaje.replace('disponible ', '').strip()
             if not producto_nombre:
@@ -117,7 +244,6 @@ Escribe `ayuda` para ver todos los comandos rápidos."""
                 respuesta = f"📊 **STOCK DE '{producto_nombre}':**\n\n"
                 for p in productos:
                     try:
-                        # Buscamos de forma segura usando la instancia u obteniendo el id primario
                         stock = Almacen.objects.filter(id_producto=p).first() or Almacen.objects.filter(id_producto_id=p.pk).first()
                         cantidad = stock.cantidad if stock else 0
                     except Exception as e:
@@ -134,7 +260,6 @@ Escribe `ayuda` para ver todos los comandos rápidos."""
                 return respuesta
             return f"❌ No encontré '{producto_nombre}'. Usa `productos` para ver la lista."
         
-        # Comando: BUSCAR [producto]
         if mensaje.startswith('buscar '):
             producto_nombre = mensaje.replace('buscar ', '').strip()
             if not producto_nombre:
@@ -166,19 +291,15 @@ Escribe `ayuda` para ver todos los comandos rápidos."""
                 return respuesta
             return f"❌ No encontré '{producto_nombre}'. Usa `productos` para ver la lista."
         
-        # Comando: AYUDA
         if mensaje in ['ayuda', 'comandos', 'help']:
             return self.mostrar_ayuda()
         
-        # Comando: SALUDO
         if mensaje in ['hola', 'buenas', 'hola buenas', 'buenos dias', 'buenas tardes', 'buenas noches', 'hi', 'hello']:
             return f"¡Hola! {BOT_EMOJI}\n\n" + self.mostrar_ayuda()
         
-        # Comando: DESPEDIDA
         if mensaje in ['adios', 'chao', 'hasta luego', 'nos vemos', 'bye', 'gracias']:
             return f"¡Gracias por consultar Farmaluz! {BOT_EMOJI}\n\nEscribe `hola` si necesitas algo más."
         
-        # RESPUESTA SI NO ENTIENDE EL COMANDO
         return self.mostrar_error()
     
     def mostrar_ayuda(self):
@@ -209,7 +330,7 @@ Escribe `ayuda` para ver los comandos disponibles.
 • `disponible diclofenac`
 • `buscar diclofenac`"""
 
-# Instancia del chatbot
+
 bot = ChatBotFarmaluz()
 
 
@@ -564,7 +685,6 @@ def enviar_mensaje(request):
                 message=mensaje.strip(),
             )
             
-            # Procesar con el chatbot
             respuesta = bot.procesar_mensaje(mensaje)
             ChatMessage.objects.create(
                 cliente=cliente,
@@ -586,3 +706,154 @@ def enviar_mensaje(request):
             }, status=500)
     
     return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+# ============================================
+# RECUPERACIÓN DE CONTRASEÑA (CÉDULA)
+# ============================================
+
+def password_reset_request(request):
+    """Vista para solicitar recuperación de cédula"""
+    if request.method == 'POST':
+        correo = request.POST.get('correo', '').strip()
+        
+        if not correo:
+            return render(request, 'chat/password_reset_form.html', 
+                         {'error_message': 'Debes ingresar un correo electrónico.'})
+        
+        try:
+            cliente = Clientes.objects.get(correo=correo)
+            
+            # Generar token
+            token = secrets.token_urlsafe(32)
+            uidb64 = urlsafe_base64_encode(force_bytes(cliente.cliente_id))
+            
+            print(f"📧 Recuperación para: {cliente.correo}")
+            print(f"🔑 UIDB64: {uidb64}")
+            print(f"🔑 Token: {token}")
+            
+            # Construir URL de confirmación con firma
+            signed_token = _build_reset_signature(uidb64, token)
+            print(f"🔐 Signed Token: {signed_token[:50]}...")
+            
+            reset_url = request.build_absolute_uri(
+                reverse('chat:password_reset_confirm', kwargs={
+                    'signed_token': signed_token
+                })
+            )
+            
+            print(f"🔗 URL: {reset_url}")
+            
+            # Enviar email
+            _send_reset_email(cliente, reset_url)
+            
+            return redirect('chat:password_reset_done')
+            
+        except Clientes.DoesNotExist:
+            return render(request, 'chat/password_reset_form.html', 
+                         {'error_message': 'No existe un cliente con este correo electrónico.'})
+        except Exception as e:
+            print(f"❌ Error en password_reset_request: {e}")
+            traceback.print_exc()
+            return render(request, 'chat/password_reset_form.html', 
+                         {'error_message': f'Ocurrió un error: {str(e)}'})
+    
+    return render(request, 'chat/password_reset_form.html')
+
+
+def password_reset_done(request):
+    """Confirmación de envío de correo"""
+    return render(request, 'chat/password_reset_done.html', _auth_brand_context())
+
+
+def password_reset_confirm(request, signed_token):
+    """Confirmar nueva cédula - Verificación por firma digital"""
+    try:
+        print(f"🔐 Token recibido: {signed_token[:50]}...")
+        
+        # Decodificar el token firmado
+        payload = _decode_reset_signature(signed_token)
+        uidb64 = payload['uidb64']
+        token = payload['token']
+        
+        print(f"🔑 UIDB64 decodificado: {uidb64}")
+        print(f"🔑 Token decodificado: {token[:20]}...")
+        
+        # Obtener cliente
+        cliente = _cliente_from_uidb64(uidb64)
+        if not cliente:
+            print(f"❌ Cliente no encontrado para UIDB64: {uidb64}")
+            return render(request, 'chat/password_reset_confirm.html', {
+                'error_message': 'Cliente no encontrado. El enlace es inválido.'
+            })
+        
+        print(f"✅ Cliente encontrado: {cliente.cedula} - {cliente.correo}")
+        
+        if request.method == 'POST':
+            new_password = request.POST.get('new_password1', '').strip()
+            confirm_password = request.POST.get('new_password2', '').strip()
+            
+            # Validaciones
+            if not new_password or not confirm_password:
+                return render(request, 'chat/password_reset_confirm.html', {
+                    'cliente': cliente,
+                    'nombre_completo': _full_name(cliente) or 'Cliente',
+                    'error_message': 'Debes ingresar y confirmar la nueva cédula.'
+                })
+            
+            if len(new_password) < 6:
+                return render(request, 'chat/password_reset_confirm.html', {
+                    'cliente': cliente,
+                    'nombre_completo': _full_name(cliente) or 'Cliente',
+                    'error_message': 'La cédula debe tener al menos 6 caracteres.'
+                })
+            
+            if new_password != confirm_password:
+                return render(request, 'chat/password_reset_confirm.html', {
+                    'cliente': cliente,
+                    'nombre_completo': _full_name(cliente) or 'Cliente',
+                    'error_message': 'Las cédulas no coinciden.'
+                })
+            
+            # Actualizar cédula
+            cliente.cedula = new_password
+            cliente.save()
+            
+            print(f"✅ Cédula actualizada para: {cliente.correo} - Nueva: {new_password}")
+            
+            # Limpiar sesión si existe
+            _clear_password_reset_state(request)
+            
+            # 👇 REDIRIGIR DIRECTAMENTE AL LOGIN
+            return redirect('chat:login')
+        
+        return render(request, 'chat/password_reset_confirm.html', {
+            'cliente': cliente,
+            'nombre_completo': _full_name(cliente) or 'Cliente'
+        })
+        
+    except signing.BadSignature as e:
+        print(f"❌ BadSignature error: {e}")
+        error_msg = str(e)
+        if 'No ":" found in value' in error_msg:
+            print("🔄 Token ya usado - Redirigiendo a página de éxito")
+            return redirect('chat:password_reset_complete')
+        return render(request, 'chat/password_reset_confirm.html', {
+            'error_message': 'El enlace es inválido o ha sido manipulado. Solicita un nuevo enlace.'
+        })
+    except signing.SignatureExpired as e:
+        print(f"❌ SignatureExpired error: {e}")
+        return render(request, 'chat/password_reset_confirm.html', {
+            'error_message': 'El enlace ha expirado. Solicita un nuevo enlace de recuperación.'
+        })
+    except Exception as e:
+        print(f"❌ Error general en password_reset_confirm: {e}")
+        traceback.print_exc()
+        return render(request, 'chat/password_reset_confirm.html', {
+            'error_message': f'Error: {str(e)}'
+        })
+
+
+def password_reset_complete(request):
+    """Cédula actualizada exitosamente"""
+    return render(request, 'chat/password_reset_complete.html', _auth_brand_context())
