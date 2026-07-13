@@ -22,7 +22,7 @@ class Clientes(models.Model):
 
     cliente_id = models.AutoField(primary_key=True)
     cedula = models.CharField(max_length=50, unique=True)
-    correo = models.EmailField(blank=True, null=True)
+    correo = models.EmailField(blank=True, null=True, unique=True)
     nombre = models.TextField(blank=True, null=True)
     apellido = models.TextField(blank=True, null=True)
     direccion = models.TextField(blank=True, null=True)

@@ -492,13 +492,21 @@ def login_view(request):
             'assistant_emoji': BOT_EMOJI,
         }, status=400)
 
+    # 👇 GUARDAR EL CONVERSATION_KEY ANTES DE HACER FLUSH
+    old_conversation_key = request.session.get('conversation_key')
+
     request.session.flush()
     request.session['user_type'] = 'admin' if cliente.cedula == SUPERADMIN_CEDULA else 'client'
     request.session['cliente_id'] = cliente.cliente_id
     request.session['cliente_cedula'] = cliente.cedula
     request.session['cliente_nombre'] = _client_display_name(cliente)
     request.session['cliente_summary'] = _client_summary(cliente)
-    request.session['conversation_key'] = cliente.cedula
+
+    # 👇 REUTILIZAR EL CONVERSATION_KEY SI EXISTE
+    if old_conversation_key:
+        request.session['conversation_key'] = old_conversation_key
+    else:
+        request.session['conversation_key'] = cliente.cedula
 
     redirect_url = reverse('chat:admin_dashboard') if cliente.cedula == SUPERADMIN_CEDULA else reverse('chat:bot_chat')
 
@@ -521,7 +529,7 @@ def registro_view(request):
     apellido = request.POST.get('apellido', '').strip()
     cedula = request.POST.get('cedula', '').strip()
     correo = request.POST.get('correo', '').strip()
-    patologia = request.POST.get('patologia', '').strip()
+    #patologia = request.POST.get('patologia', '').strip()
     genero = request.POST.get('genero', '').strip().lower()
     direccion = request.POST.get('direccion', '').strip()
     n_telefono = request.POST.get('n_telefono', '').strip()
@@ -532,7 +540,7 @@ def registro_view(request):
         'apellido': apellido,
         'cedula': cedula,
         'correo': correo,
-        'patologia': patologia,
+        #'patologia': patologia,
         'genero': genero,
         'direccion': direccion,
         'n_telefono': n_telefono,
@@ -563,25 +571,41 @@ def registro_view(request):
             'assistant_emoji': BOT_EMOJI,
         }, status=400)
 
-    cliente, _ = Clientes.objects.update_or_create(
+    # 👇 VALIDAR SI LA CÉDULA YA EXISTE
+    if Clientes.objects.filter(cedula=cedula).exists():
+        return render(request, 'registro.html', {
+            'error_message': '⚠️ Esta cédula ya está registrada en el sistema.',
+            'form_values': required_fields,
+            'assistant_name': BOT_NAME,
+            'assistant_emoji': BOT_EMOJI,
+        }, status=400)
+
+    # 👇 VALIDAR SI EL CORREO YA EXISTE (OPCIONAL PERO RECOMENDADO)
+    if Clientes.objects.filter(correo=correo).exists():
+        return render(request, 'registro.html', {
+            'error_message': '⚠️ Este correo electrónico ya está registrado en el sistema.',
+            'form_values': required_fields,
+            'assistant_name': BOT_NAME,
+            'assistant_emoji': BOT_EMOJI,
+        }, status=400)
+
+    # Crear nuevo cliente (ya no usamos update_or_create)
+    cliente = Clientes.objects.create(
         cedula=cedula,
-        defaults={
-            'correo': correo,
-            'nombre': nombre,
-            'apellido': apellido,
-            'patologia': patologia,
-            'genero': genero,
-            'direccion': direccion,
-            'n_telefono': n_telefono,
-            'fecha_nacimiento': fecha_nacimiento or None,
-        },
+        correo=correo,
+        nombre=nombre,
+        apellido=apellido,
+        #patologia=patologia,
+        genero=genero,
+        direccion=direccion,
+        n_telefono=n_telefono,
+        fecha_nacimiento=fecha_nacimiento or None,
     )
 
     request.session['login_prefill_cedula'] = cliente.cedula
     request.session['registration_name'] = _client_display_name(cliente)
 
     return redirect(f"{reverse('chat:login')}?registered=1")
-
 
 def chat_view(request):
     if _is_admin_session(request):
