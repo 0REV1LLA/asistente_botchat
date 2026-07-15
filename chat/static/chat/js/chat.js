@@ -178,6 +178,23 @@ function initChat() {
     const scrollButton = document.getElementById('scrollToBottomBtn');
     const logoutLink = document.querySelector('.js-logout-link');
     const confirmDialog = setupConfirmDialog();
+
+    // ============================================
+    // TOGGLE COMANDOS EN MÓVILES (NUEVO)
+    // ============================================
+    const toggleBtn = document.getElementById('toggleCommandsBtn');
+    const commandPanel = document.querySelector('.command-panel');
+
+    if (toggleBtn && commandPanel) {
+        toggleBtn.addEventListener('click', function() {
+            const isOpen = commandPanel.classList.toggle('open');
+            toggleBtn.setAttribute('aria-expanded', isOpen);
+            toggleBtn.innerHTML = isOpen
+                ? '<i class="fa-solid fa-xmark"></i> Cerrar comandos'
+                : '<i class="fa-solid fa-bars"></i> Comandos rápidos';
+        });
+    }
+
     if (input) {
         input.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') sendMessage();

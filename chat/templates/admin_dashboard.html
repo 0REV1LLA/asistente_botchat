@@ -122,6 +122,16 @@
     </div>
 
     {{ conversations|json_script:"conversations-data" }}
+<div class="success-overlay" id="successOverlay" hidden aria-hidden="true">
+    <div class="success-dialog" role="dialog" aria-modal="true" aria-labelledby="successTitle" aria-describedby="successMessage">
+        <div class="success-icon"><i class="fa-solid fa-check-circle"></i></div>
+        <h2 id="successTitle">¡Éxito!</h2>
+        <p id="successMessage">Se ha borrado el chat exitosamente</p>
+        <div class="success-actions">
+            <button type="button" class="success-button accept" data-success-close>Aceptar</button>
+        </div>
+    </div>
+</div>
     <script src="{% static 'chat/js/admin_dashboard.js' %}" defer></script>
 </body>
 </html>

@@ -49,7 +49,7 @@
                         <span>Cédula</span>
                         <div class="input-wrap">
                             <i class="fa-solid fa-id-card"></i>
-                            <input type="text" name="cedula" placeholder="Ej: 31437422" value="{{ form_values.cedula|default:'' }}" required>
+                            <input type="text" name="cedula" placeholder="Ej: 31437422" value="{{ form_values.cedula|default:'' }}" required minlength="7" maxlength="8">
                         </div>
                     </label>
                     <label class="field field-full">

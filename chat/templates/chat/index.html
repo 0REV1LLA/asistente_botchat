@@ -36,19 +36,11 @@
                     <a class="ghost-link js-logout-link" href="{% url 'chat:logout' %}">Cerrar sesión</a>
                 </div>
             </header>
-
-            <div class="chat-layout">
-                <aside class="command-panel">
-                    <div class="panel-card accent-card">
-                        <p class="eyebrow">Atajos</p>
-                        <h2>Comandos rápidos</h2>
-                        <ul class="command-list">
-                            {% for command, description in quick_commands %}
-                            <li><strong>{{ command }}</strong> - {{ description }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    
+                <button class="toggle-commands-btn" id="toggleCommandsBtn" aria-expanded="false">
+                    <i class="fa-solid fa-bars"></i> Comandos rápidos
+                </button>
+            <div class="chat-layout">                        
+                <aside class="command-panel">         
                     <div class="panel-card muted-card whatsapp-card">
                         <p class="eyebrow">Ayuda rápida</p>
                         <a class="whatsapp-link" href="https://wa.me/584265601779" target="_blank" rel="noopener noreferrer" aria-label="Contactar por WhatsApp">
@@ -60,6 +52,16 @@
                                 <span>Para más información o concretar la compra, presione aquí</span>
                             </div>
                         </a>
+                    </div>
+                    
+                    <div class="panel-card accent-card">
+                        <p class="eyebrow">Atajos</p>
+                        <h2>Comandos rápidos</h2>
+                        <ul class="command-list">
+                            {% for command, description in quick_commands %}
+                            <li><strong>{{ command }}</strong> - {{ description }}</li>
+                            {% endfor %}
+                        </ul>
                     </div>
                 </aside>
 

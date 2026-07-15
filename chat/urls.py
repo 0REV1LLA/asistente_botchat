@@ -18,4 +18,5 @@ urlpatterns = [
     path('admin-dashboard/', views.admin_dashboard_view, name='admin_dashboard'),
     path('enviar/', views.enviar_mensaje, name='enviar_mensaje'),
     path('bloquear/<int:cliente_id>/', views.toggle_bloqueo_cliente, name='toggle_bloqueo_cliente'),
+    path('borrar-conversacion/', views.borrar_conversacion, name='borrar_conversacion'),
 ]

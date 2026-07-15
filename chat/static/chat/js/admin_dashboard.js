@@ -65,6 +65,70 @@ function setupConfirmDialog() {
     };
 }
 
+// ============================================
+// MODAL DE ÉXITO - RESPONSIVE Y ESTILIZADO
+// ============================================
+function showSuccessModal(message, callback) {
+    const overlay = document.getElementById('successOverlay');
+    if (!overlay) {
+        // Fallback: usar alert si no existe el modal
+        alert(message);
+        if (callback) callback();
+        return;
+    }
+
+    const title = overlay.querySelector('#successTitle');
+    const messageElement = overlay.querySelector('#successMessage');
+    const closeButton = overlay.querySelector('[data-success-close]');
+
+    title.textContent = '¡Éxito!';
+    messageElement.textContent = message;
+
+    overlay.hidden = false;
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('success-open');
+
+    const closeModal = () => {
+        overlay.hidden = true;
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('success-open');
+        if (callback) callback();
+    };
+
+    // Eliminar event listeners anteriores para evitar duplicados
+    const newCloseButton = closeButton.cloneNode(true);
+    closeButton.parentNode.replaceChild(newCloseButton, closeButton);
+
+    newCloseButton.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) {
+            closeModal();
+        }
+    });
+
+    document.addEventListener('keydown', function handler(event) {
+        if (!overlay.hidden && event.key === 'Escape') {
+            closeModal();
+            document.removeEventListener('keydown', handler);
+        }
+    });
+}
+// Función para obtener el CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const conversationsData = document.getElementById('conversations-data');
     const conversations = conversationsData ? JSON.parse(conversationsData.textContent) : [];
@@ -110,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         threadMessages.scrollTop = threadMessages.scrollHeight;
     }
+
     function setActiveConversation(conversationKey) {
         const conversation = conversations.find((item) => item.conversation_key === conversationKey);
         if (!conversation) {
@@ -169,45 +234,108 @@ document.addEventListener('DOMContentLoaded', () => {
         chatThread.hidden = true;
         return;
     }
-
-    conversationList.innerHTML = conversations.map((conversation, index) => `
-        <div class="conversation-item-wrap">
-            <button type="button" class="conversation-item ${index === 0 ? 'active' : ''}" data-conversation-key="${escapeHtml(conversation.conversation_key)}">
-                <div class="avatar">${escapeHtml(conversation.avatar || conversation.initials || 'CL')}</div>
-                <div>
-                    <div class="conversation-title">
-                        <h3>${escapeHtml(conversation.client_name)}</h3>
-                        <span class="conversation-time">${escapeHtml(conversation.last_time)}</span>
-                    </div>
-                    <p class="conversation-preview">${escapeHtml(conversation.last_message)}</p>
+// ============================================
+// RENDERIZAR CONVERSACIONES CON BOTÓN BORRAR
+// ============================================
+conversationList.innerHTML = conversations.map((conversation, index) => `
+    <div class="conversation-item-wrap">
+        <button type="button" class="conversation-item ${index === 0 ? 'active' : ''}" data-conversation-key="${escapeHtml(conversation.conversation_key)}">
+            <div class="avatar">${escapeHtml(conversation.avatar || conversation.initials || 'CL')}</div>
+            <div>
+                <div class="conversation-title">
+                    <h3>${escapeHtml(conversation.client_name)}</h3>
+                    <span class="conversation-time">${escapeHtml(conversation.last_time)}</span>
                 </div>
-            </button>
+                <p class="conversation-preview">${escapeHtml(conversation.last_message)}</p>
+            </div>
+        </button>
+        <div style="display: flex; gap: 4px; align-items: center; flex-shrink: 0;">
             <a class="block-toggle ${conversation.bloqueado ? 'blocked' : 'active'} js-block-toggle" href="/chat/bloquear/${escapeHtml(String(conversation.cliente_id || ''))}/" data-client-id="${escapeHtml(String(conversation.cliente_id || ''))}">
                 <i class="fa-solid ${conversation.bloqueado ? 'fa-unlock' : 'fa-lock'}"></i>
             </a>
+            <a class="block-toggle delete-chat js-delete-chat" href="#" data-conversation-key="${escapeHtml(conversation.conversation_key)}" data-client-id="${escapeHtml(String(conversation.cliente_id || ''))}" style="color: #b42318; background: #ffe7e7; border-color: rgba(180, 35, 24, 0.16);">
+                <i class="fa-solid fa-trash-can"></i>
+            </a>
         </div>
-    `).join('');
+    </div>
+`).join('');
 
-    conversationList.querySelectorAll('.js-block-toggle').forEach((item) => {
-        item.addEventListener('click', (event) => {
-            if (!confirmDialog) {
-                return;
+// ============================================
+// EVENTO PARA BLOQUEAR/DESBLOQUEAR
+// ============================================
+conversationList.querySelectorAll('.js-block-toggle').forEach((item) => {
+    item.addEventListener('click', (event) => {
+        if (!confirmDialog) {
+            return;
+        }
+
+        event.preventDefault();
+        const isBlocked = item.classList.contains('blocked');
+        confirmDialog({
+            titleText: isBlocked ? 'Desbloquear usuario' : 'Bloquear usuario',
+            messageText: isBlocked ? '¿Seguro que deseas desbloquear este usuario?' : '¿Seguro que deseas bloquear este usuario?',
+            acceptText: isBlocked ? 'Desbloquear' : 'Bloquear',
+        }).then((confirmed) => {
+            if (confirmed) {
+                window.location.href = item.href;
             }
-
-            event.preventDefault();
-            const isBlocked = item.classList.contains('blocked');
-            confirmDialog({
-                titleText: isBlocked ? 'Desbloquear usuario' : 'Bloquear usuario',
-                messageText: isBlocked ? '¿Seguro que deseas desbloquear este usuario?' : '¿Seguro que deseas bloquear este usuario?',
-                acceptText: isBlocked ? 'Desbloquear' : 'Bloquear',
-            }).then((confirmed) => {
-                if (confirmed) {
-                    window.location.href = item.href;
-                }
-            });
         });
     });
+});
 
+// ============================================
+// EVENTO PARA BORRAR CHAT (CON MODAL DE ÉXITO)
+// ============================================
+conversationList.querySelectorAll('.js-delete-chat').forEach((item) => {
+    item.addEventListener('click', (event) => {
+        if (!confirmDialog) {
+            return;
+        }
+
+        event.preventDefault();
+        const conversationKey = item.dataset.conversationKey;
+        const clientId = item.dataset.clientId;
+
+        confirmDialog({
+            titleText: 'Borrar conversación',
+            messageText: '¿Seguro que deseas borrar esta conversación? El usuario regular seguirá viendo sus mensajes.',
+            acceptText: 'Borrar',
+        }).then((confirmed) => {
+            if (confirmed) {
+                fetch('/chat/borrar-conversacion/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        conversation_key: conversationKey,
+                        cliente_id: clientId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 👇 USAR EL MODAL DE ÉXITO EN VEZ DE ALERT
+                        showSuccessModal('Se ha borrado el chat exitosamente', () => {
+                            window.location.reload();
+                        });
+                    } else {
+                        alert('❌ Error al borrar el chat: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('❌ Error al borrar el chat');
+                });
+            }
+        });
+    });
+});
+
+    // ============================================
+    // SCROLL BOTTOM
+    // ============================================
     if (scrollButton) {
         scrollButton.addEventListener('click', () => scrollThreadToBottom());
     }
@@ -221,6 +349,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ============================================
+    // SELECCIONAR CONVERSACIÓN
+    // ============================================
     conversationList.querySelectorAll('.conversation-item').forEach((item) => {
         item.addEventListener('click', () => setActiveConversation(item.dataset.conversationKey));
     });

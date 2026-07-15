@@ -420,12 +420,25 @@ def _get_chat_history(conversation_key):
     return history
 
 
-def _build_conversations():
+# ============================================
+# FUNCIÓN MODIFICADA - CON FILTRO DE CHATS OCULTOS
+# ============================================
+def _build_conversations(request=None):
     conversations = OrderedDict()
     messages = ChatMessage.objects.select_related('cliente').order_by('conversation_key', 'created_at')
+    
+    # Obtener lista de conversaciones ocultas de la sesión
+    hidden = []
+    if request and request.session.get('hidden_conversations'):
+        hidden = request.session.get('hidden_conversations', [])
 
     for message in messages:
         conversation_key = message.conversation_key
+        
+        # Saltar conversaciones ocultas
+        if conversation_key in hidden:
+            continue
+            
         cliente = message.cliente
 
         if conversation_key not in conversations:
@@ -513,6 +526,9 @@ def login_view(request):
     return redirect(redirect_url)
 
 
+# ============================================
+# FUNCIÓN MODIFICADA - CON VALIDACIÓN DE LONGITUD DE CÉDULA
+# ============================================
 def registro_view(request):
     if request.method == 'GET':
         if _is_admin_session(request):
@@ -529,7 +545,6 @@ def registro_view(request):
     apellido = request.POST.get('apellido', '').strip()
     cedula = request.POST.get('cedula', '').strip()
     correo = request.POST.get('correo', '').strip()
-    #patologia = request.POST.get('patologia', '').strip()
     genero = request.POST.get('genero', '').strip().lower()
     direccion = request.POST.get('direccion', '').strip()
     n_telefono = request.POST.get('n_telefono', '').strip()
@@ -540,7 +555,6 @@ def registro_view(request):
         'apellido': apellido,
         'cedula': cedula,
         'correo': correo,
-        #'patologia': patologia,
         'genero': genero,
         'direccion': direccion,
         'n_telefono': n_telefono,
@@ -550,6 +564,15 @@ def registro_view(request):
     if any(not value for value in required_fields.values()):
         return render(request, 'registro.html', {
             'error_message': 'Completa todos los datos para continuar con el registro.',
+            'form_values': required_fields,
+            'assistant_name': BOT_NAME,
+            'assistant_emoji': BOT_EMOJI,
+        }, status=400)
+
+    # 👇 VALIDAR LONGITUD DE LA CÉDULA (NUEVO)
+    if len(cedula) < 7 or len(cedula) > 8:
+        return render(request, 'registro.html', {
+            'error_message': '⚠️ La cédula debe tener entre 7 y 8 caracteres.',
             'form_values': required_fields,
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
@@ -580,7 +603,7 @@ def registro_view(request):
             'assistant_emoji': BOT_EMOJI,
         }, status=400)
 
-    # 👇 VALIDAR SI EL CORREO YA EXISTE (OPCIONAL PERO RECOMENDADO)
+    # 👇 VALIDAR SI EL CORREO YA EXISTE
     if Clientes.objects.filter(correo=correo).exists():
         return render(request, 'registro.html', {
             'error_message': '⚠️ Este correo electrónico ya está registrado en el sistema.',
@@ -589,13 +612,12 @@ def registro_view(request):
             'assistant_emoji': BOT_EMOJI,
         }, status=400)
 
-    # Crear nuevo cliente (ya no usamos update_or_create)
+    # Crear nuevo cliente
     cliente = Clientes.objects.create(
         cedula=cedula,
         correo=correo,
         nombre=nombre,
         apellido=apellido,
-        #patologia=patologia,
         genero=genero,
         direccion=direccion,
         n_telefono=n_telefono,
@@ -606,6 +628,7 @@ def registro_view(request):
     request.session['registration_name'] = _client_display_name(cliente)
 
     return redirect(f"{reverse('chat:login')}?registered=1")
+
 
 def chat_view(request):
     if _is_admin_session(request):
@@ -630,11 +653,14 @@ def chat_view(request):
     })
 
 
+# ============================================
+# FUNCIÓN MODIFICADA - PASANDO 'request' A _build_conversations
+# ============================================
 def admin_dashboard_view(request):
     if not _is_admin_session(request):
         return redirect('chat:login')
 
-    conversations = _build_conversations()
+    conversations = _build_conversations(request)  # 👈 PASAR request
     active_conversation = conversations[0] if conversations else None
 
     return render(request, 'admin_dashboard.html', {
@@ -848,7 +874,6 @@ def password_reset_confirm(request, signed_token):
             # Limpiar sesión si existe
             _clear_password_reset_state(request)
             
-            # 👇 REDIRIGIR DIRECTAMENTE AL LOGIN
             return redirect('chat:login')
         
         return render(request, 'chat/password_reset_confirm.html', {
@@ -881,3 +906,38 @@ def password_reset_confirm(request, signed_token):
 def password_reset_complete(request):
     """Cédula actualizada exitosamente"""
     return render(request, 'chat/password_reset_complete.html', _auth_brand_context())
+
+    # ============================================
+# BORRAR CONVERSACIÓN (SUPERADMIN)
+# ============================================
+
+@csrf_exempt
+def borrar_conversacion(request):
+    """Elimina una conversación del panel del SuperAdmin"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    
+    # Verificar que sea SuperAdmin
+    if not _is_admin_session(request):
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        conversation_key = data.get('conversation_key')
+        
+        if not conversation_key:
+            return JsonResponse({'error': 'Falta conversation_key'}, status=400)
+        
+        # Guardar en sesión la lista de conversaciones ocultas
+        if 'hidden_conversations' not in request.session:
+            request.session['hidden_conversations'] = []
+        
+        if conversation_key not in request.session['hidden_conversations']:
+            request.session['hidden_conversations'].append(conversation_key)
+            request.session.modified = True
+        
+        return JsonResponse({'success': True, 'message': 'Chat oculto del panel'})
+        
+    except Exception as e:
+        print(f"❌ Error al borrar conversación: {e}")
+        return JsonResponse({'error': str(e)}, status=500)

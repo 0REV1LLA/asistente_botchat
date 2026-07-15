@@ -685,3 +685,616 @@ body.confirm-open {
         grid-template-columns: 1fr;
     }
 }
+
+.success-overlay {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background: rgba(6, 12, 22, 0.58);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+}
+
+.success-overlay[hidden] {
+    display: none !important;
+}
+
+.success-dialog {
+    width: min(92vw, 420px);
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(17, 168, 111, 0.16);
+    border-radius: 24px;
+    box-shadow: 0 30px 80px rgba(6, 15, 30, 0.34);
+    padding: 32px 24px 24px;
+    text-align: center;
+    animation: successIn 0.3s ease both;
+}
+
+@keyframes successIn {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.success-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 14px;
+    background: linear-gradient(135deg, rgba(17, 168, 111, 0.16), rgba(17, 168, 111, 0.06));
+    color: #0f6f4b;
+    font-size: 2rem;
+    border: 2px solid rgba(17, 168, 111, 0.2);
+}
+
+.success-dialog h2 {
+    margin: 0 0 8px;
+    font-size: 1.22rem;
+    color: var(--text);
+}
+
+.success-dialog p {
+    margin: 0 0 20px;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.success-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.success-button {
+    border: 0;
+    border-radius: 14px;
+    min-height: 48px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 24px;
+}
+
+.success-button.accept {
+    background: linear-gradient(135deg, var(--green), #0d8a59);
+    color: #fff;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.success-button.accept:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 16px 28px rgba(17, 168, 111, 0.28);
+}
+
+body.success-open {
+    overflow: hidden;
+}
+
+/* Responsive para móviles */
+@media (max-width: 480px) {
+    .success-dialog {
+        padding: 24px 18px 18px;
+        width: 92vw;
+    }
+
+    .success-icon {
+        width: 52px;
+        height: 52px;
+        font-size: 1.6rem;
+    }
+
+    .success-dialog h2 {
+        font-size: 1rem;
+    }
+
+    .success-dialog p {
+        font-size: 0.85rem;
+    }
+
+    .success-button {
+        min-height: 40px;
+        font-size: 0.85rem;
+    }
+}
+
+/* ============================================
+   FIX RESPONSIVE PARA TELÉFONOS DETALLADO - ADMIN
+   ============================================ */
+
+@media (max-width: 480px) {
+    .dashboard-shell {
+        padding: 0 !important;
+        gap: 0 !important;
+        min-height: 100vh !important;
+        height: 100vh !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .sidebar {
+        border-radius: 0 !important;
+        border: none !important;
+        min-height: 0 !important;
+        max-height: 45vh !important;
+        flex-shrink: 0 !important;
+    }
+
+    .sidebar-top {
+        padding: 12px 14px !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 6px !important;
+    }
+
+    .brand-block {
+        gap: 8px !important;
+        width: 100% !important;
+    }
+
+    .brand-logo {
+        width: 40px !important;
+        height: 40px !important;
+        border-radius: 12px !important;
+    }
+
+    .brand-logo img {
+        padding: 4px !important;
+    }
+
+    .brand-copy h1 {
+        font-size: 1rem !important;
+    }
+
+    .brand-subtitle {
+        font-size: 0.7rem !important;
+        display: none !important;
+    }
+
+    .sidebar-actions {
+        width: 100% !important;
+        justify-content: flex-start !important;
+        gap: 4px !important;
+    }
+
+    .metric-pill {
+        padding: 4px 8px !important;
+        font-size: 0.7rem !important;
+    }
+
+    .sidebar-summary {
+        padding: 8px 14px !important;
+        gap: 6px !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    .sidebar-summary > div {
+        padding: 8px 10px !important;
+        border-radius: 10px !important;
+    }
+
+    .sidebar-summary strong {
+        font-size: 0.85rem !important;
+    }
+
+    .summary-label {
+        font-size: 0.6rem !important;
+    }
+
+    .conversation-list {
+        padding: 6px 8px !important;
+        max-height: 200px !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        flex: 1 !important;
+    }
+
+    .conversation-item-wrap {
+        grid-template-columns: 1fr auto !important;
+        gap: 4px !important;
+        margin-bottom: 4px !important;
+    }
+
+    .conversation-item {
+        padding: 8px 10px !important;
+        gap: 8px !important;
+        border-radius: 12px !important;
+    }
+
+    .avatar {
+        width: 32px !important;
+        height: 32px !important;
+        border-radius: 10px !important;
+        font-size: 0.7rem !important;
+    }
+
+    .conversation-title h3 {
+        font-size: 0.8rem !important;
+    }
+
+    .conversation-time {
+        font-size: 0.6rem !important;
+    }
+
+    .conversation-preview {
+        font-size: 0.7rem !important;
+        -webkit-line-clamp: 1 !important;
+    }
+
+    .block-toggle {
+        padding: 4px 6px !important;
+        font-size: 0.65rem !important;
+        min-width: 24px !important;
+        justify-content: center !important;
+    }
+
+    .content-panel {
+        border-radius: 0 !important;
+        border: none !important;
+        flex: 1 !important;
+        min-height: 0 !important;
+        height: 55vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+    }
+
+    .panel-header {
+        padding: 10px 14px !important;
+        flex-direction: column !important;
+        gap: 6px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .panel-header h2 {
+        font-size: 0.9rem !important;
+    }
+
+    .panel-subtitle {
+        font-size: 0.7rem !important;
+        display: none !important;
+    }
+
+    .panel-actions {
+        width: 100% !important;
+        justify-content: flex-start !important;
+        gap: 4px !important;
+        flex-wrap: wrap !important;
+    }
+
+    .panel-badge {
+        padding: 4px 8px !important;
+        font-size: 0.65rem !important;
+    }
+
+    .logout-link {
+        padding: 4px 8px !important;
+        font-size: 0.65rem !important;
+    }
+
+    .thread-meta {
+        padding: 6px 14px !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 4px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .thread-meta > div {
+        padding: 6px 8px !important;
+        border-radius: 8px !important;
+    }
+
+    .meta-label {
+        font-size: 0.55rem !important;
+    }
+
+    .thread-meta strong {
+        font-size: 0.75rem !important;
+    }
+
+    .status-badge {
+        padding: 4px 8px !important;
+        font-size: 0.6rem !important;
+        margin-left: 4px !important;
+    }
+
+    .messages {
+        padding: 8px 10px !important;
+        gap: 8px !important;
+        flex: 1 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        height: auto !important;
+    }
+
+    .message {
+        max-width: 92% !important;
+        padding: 8px 10px !important;
+        border-radius: 12px !important;
+    }
+
+    .message .message-label {
+        font-size: 0.6rem !important;
+        margin-bottom: 4px !important;
+    }
+
+    .message-text {
+        font-size: 0.8rem !important;
+        line-height: 1.4 !important;
+    }
+
+    .msg-time {
+        font-size: 0.55rem !important;
+        margin-top: 4px !important;
+    }
+
+    .read-only-footer {
+        padding: 8px 10px 10px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .readonly-copy {
+        font-size: 0.65rem !important;
+        margin-bottom: 6px !important;
+        display: none !important;
+    }
+
+    .input-row {
+        gap: 6px !important;
+    }
+
+    .input-row input {
+        min-height: 34px !important;
+        padding: 0 10px !important;
+        font-size: 0.8rem !important;
+        border-radius: 10px !important;
+    }
+
+    .input-row button {
+        min-height: 34px !important;
+        padding: 0 12px !important;
+        font-size: 0.7rem !important;
+        border-radius: 10px !important;
+    }
+
+    .scroll-bottom-btn {
+        right: 10px !important;
+        bottom: 72px !important;
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.7rem !important;
+    }
+
+    .empty-state {
+        padding: 20px !important;
+    }
+
+    .empty-state i {
+        font-size: 2.5rem !important;
+    }
+
+    .empty-state h3 {
+        font-size: 0.9rem !important;
+    }
+
+    .empty-state p {
+        font-size: 0.75rem !important;
+    }
+
+    .confirm-dialog {
+        padding: 16px !important;
+        width: 92vw !important;
+    }
+
+    .confirm-dialog h2 {
+        font-size: 1rem !important;
+    }
+
+    .confirm-dialog p {
+        font-size: 0.85rem !important;
+    }
+
+    .confirm-actions {
+        gap: 6px !important;
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .confirm-button {
+        min-height: 40px !important;
+        font-size: 0.8rem !important;
+    }
+}
+
+@media (max-width: 360px) {
+    .sidebar {
+        max-height: 40vh !important;
+    }
+
+    .sidebar-top {
+        padding: 8px 10px !important;
+    }
+
+    .brand-logo {
+        width: 32px !important;
+        height: 32px !important;
+    }
+
+    .brand-copy h1 {
+        font-size: 0.8rem !important;
+    }
+
+    .conversation-item {
+        padding: 6px 8px !important;
+    }
+
+    .avatar {
+        width: 26px !important;
+        height: 26px !important;
+        font-size: 0.6rem !important;
+    }
+
+    .conversation-title h3 {
+        font-size: 0.7rem !important;
+    }
+
+    .conversation-preview {
+        font-size: 0.65rem !important;
+    }
+
+    .content-panel {
+        height: 60vh !important;
+    }
+
+    .panel-header h2 {
+        font-size: 0.75rem !important;
+    }
+
+    .messages {
+        padding: 4px 6px !important;
+        gap: 4px !important;
+    }
+
+    .message {
+        padding: 4px 8px !important;
+        max-width: 95% !important;
+    }
+
+    .message-text {
+        font-size: 0.7rem !important;
+    }
+
+    .input-row input {
+        min-height: 28px !important;
+        font-size: 0.7rem !important;
+        padding: 0 6px !important;
+    }
+
+    .input-row button {
+        min-height: 28px !important;
+        padding: 0 8px !important;
+        font-size: 0.6rem !important;
+    }
+
+    .scroll-bottom-btn {
+        right: 6px !important;
+        bottom: 60px !important;
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 0.6rem !important;
+    }
+}
+
+/* Landscape en móviles para admin */
+@media (max-width: 800px) and (orientation: landscape) {
+    .dashboard-shell {
+        display: flex !important;
+        flex-direction: row !important;
+        height: 100vh !important;
+        padding: 4px !important;
+        gap: 4px !important;
+    }
+
+    .sidebar {
+        max-height: 100vh !important;
+        max-width: 35vw !important;
+        flex-shrink: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .content-panel {
+        height: 100vh !important;
+        flex: 1 !important;
+    }
+
+    .sidebar-top {
+        padding: 6px 8px !important;
+    }
+
+    .brand-logo {
+        width: 28px !important;
+        height: 28px !important;
+    }
+
+    .brand-copy h1 {
+        font-size: 0.7rem !important;
+    }
+
+    .conversation-list {
+        max-height: 300px !important;
+    }
+
+    .conversation-item {
+        padding: 4px 6px !important;
+        gap: 4px !important;
+    }
+
+    .avatar {
+        width: 22px !important;
+        height: 22px !important;
+        font-size: 0.5rem !important;
+    }
+
+    .conversation-title h3 {
+        font-size: 0.65rem !important;
+    }
+
+    .conversation-preview {
+        font-size: 0.55rem !important;
+        -webkit-line-clamp: 1 !important;
+    }
+
+    .panel-header {
+        padding: 4px 8px !important;
+    }
+
+    .panel-header h2 {
+        font-size: 0.7rem !important;
+    }
+
+    .messages {
+        padding: 4px 6px !important;
+    }
+
+    .message {
+        padding: 4px 6px !important;
+        max-width: 85% !important;
+    }
+
+    .message-text {
+        font-size: 0.7rem !important;
+    }
+
+    .read-only-footer {
+        padding: 4px 6px !important;
+    }
+
+    .input-row input {
+        min-height: 26px !important;
+        font-size: 0.65rem !important;
+    }
+
+    .input-row button {
+        min-height: 26px !important;
+        padding: 0 8px !important;
+        font-size: 0.6rem !important;
+    }
+
+    .scroll-bottom-btn {
+        bottom: 56px !important;
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 0.6rem !important;
+    }
+}
