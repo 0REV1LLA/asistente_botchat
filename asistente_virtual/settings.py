@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     #Apps propias
     'chat',          
-    'simple_chatbot',
+    #'simple_chatbot',
 ]
 
 # Configuración del Chatbot
