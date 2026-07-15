@@ -14,6 +14,9 @@
 </head>
 <body>
     <main class="dashboard-shell">
+        <!-- ============================================ -->
+        <!-- SIDEBAR - MENÚ LATERAL -->
+        <!-- ============================================ -->
         <aside class="sidebar">
             <div class="sidebar-top">
                 <div class="brand-block">
@@ -52,8 +55,15 @@
             <div class="conversation-list" id="conversationList" aria-label="Lista de conversaciones"></div>
         </aside>
 
+        <!-- ============================================ -->
+        <!-- CONTENIDO PRINCIPAL -->
+        <!-- ============================================ -->
         <section class="content-panel">
             <header class="panel-header">
+                <!-- Botón hamburguesa para móviles -->
+                <button class="sidebar-toggle-btn" id="sidebarToggleBtn" aria-label="Abrir lista de chats">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
                 <div>
                     <p class="eyebrow">Historial real</p>
                     <h2 id="activeConversationTitle">Selecciona una conversación</h2>
@@ -62,11 +72,11 @@
                 <div class="panel-actions">
                     <div class="panel-badge">
                         <i class="fa-solid fa-eye"></i>
-                        <span>Vista de monitoreo</span>
+                        <span class="badge-text">Vista de monitoreo</span>
                     </div>
                     <a class="logout-link logout-inline js-logout-link" href="{% url 'chat:logout' %}">
                         <i class="fa-solid fa-right-from-bracket"></i>
-                        <span>Cerrar sesión</span>
+                        <span class="logout-text">Cerrar sesión</span>
                     </a>
                 </div>
             </header>
@@ -109,6 +119,10 @@
         </section>
     </main>
 
+    <!-- Overlay para cerrar menú lateral -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Modal de confirmación -->
     <div class="confirm-overlay" id="confirmOverlay" hidden aria-hidden="true">
         <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
             <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
@@ -121,17 +135,19 @@
         </div>
     </div>
 
-    {{ conversations|json_script:"conversations-data" }}
-<div class="success-overlay" id="successOverlay" hidden aria-hidden="true">
-    <div class="success-dialog" role="dialog" aria-modal="true" aria-labelledby="successTitle" aria-describedby="successMessage">
-        <div class="success-icon"><i class="fa-solid fa-check-circle"></i></div>
-        <h2 id="successTitle">¡Éxito!</h2>
-        <p id="successMessage">Se ha borrado el chat exitosamente</p>
-        <div class="success-actions">
-            <button type="button" class="success-button accept" data-success-close>Aceptar</button>
+    <!-- Modal de éxito -->
+    <div class="success-overlay" id="successOverlay" hidden aria-hidden="true">
+        <div class="success-dialog" role="dialog" aria-modal="true" aria-labelledby="successTitle" aria-describedby="successMessage">
+            <div class="success-icon"><i class="fa-solid fa-check-circle"></i></div>
+            <h2 id="successTitle">¡Éxito!</h2>
+            <p id="successMessage">Se ha borrado el chat exitosamente</p>
+            <div class="success-actions">
+                <button type="button" class="success-button accept" data-success-close>Aceptar</button>
+            </div>
         </div>
     </div>
-</div>
+
+    {{ conversations|json_script:"conversations-data" }}
     <script src="{% static 'chat/js/admin_dashboard.js' %}" defer></script>
 </body>
 </html>
