@@ -17,7 +17,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.csrf import csrf_exempt
 from django.templatetags.static import static
 
-from .models import Almacen, ChatMessage, Clientes, Productos
+from .models import Almacen, ChatMessage, Clientes, Productos, ChatsOcultos
 
 SUPERADMIN_CEDULA = 'SuperAdminFarmaLuz'
 BOT_NAME = 'Lucy'
@@ -421,16 +421,18 @@ def _get_chat_history(conversation_key):
 
 
 # ============================================
-# FUNCIÓN MODIFICADA - CON FILTRO DE CHATS OCULTOS
+# FUNCIÓN MODIFICADA - CON FILTRO DE CHATS OCULTOS EN BD
 # ============================================
 def _build_conversations(request=None):
     conversations = OrderedDict()
     messages = ChatMessage.objects.select_related('cliente').order_by('conversation_key', 'created_at')
     
-    # Obtener lista de conversaciones ocultas de la sesión
+    # Obtener lista de conversaciones ocultas desde la base de datos
     hidden = []
-    if request and request.session.get('hidden_conversations'):
-        hidden = request.session.get('hidden_conversations', [])
+    if request and _is_admin_session(request):
+        hidden = ChatsOcultos.objects.filter(
+            superadmin_cedula=SUPERADMIN_CEDULA
+        ).values_list('conversation_key', flat=True)
 
     for message in messages:
         conversation_key = message.conversation_key
@@ -545,6 +547,7 @@ def registro_view(request):
     apellido = request.POST.get('apellido', '').strip()
     cedula = request.POST.get('cedula', '').strip()
     correo = request.POST.get('correo', '').strip()
+    # patologia = request.POST.get('patologia', '').strip()
     genero = request.POST.get('genero', '').strip().lower()
     direccion = request.POST.get('direccion', '').strip()
     n_telefono = request.POST.get('n_telefono', '').strip()
@@ -555,6 +558,7 @@ def registro_view(request):
         'apellido': apellido,
         'cedula': cedula,
         'correo': correo,
+        # 'patologia': patologia,
         'genero': genero,
         'direccion': direccion,
         'n_telefono': n_telefono,
@@ -618,6 +622,7 @@ def registro_view(request):
         correo=correo,
         nombre=nombre,
         apellido=apellido,
+        # patologia=patologia,
         genero=genero,
         direccion=direccion,
         n_telefono=n_telefono,
@@ -691,6 +696,9 @@ def toggle_bloqueo_cliente(request, cliente_id):
     return redirect('chat:admin_dashboard')
 
 
+# ============================================
+# FUNCIÓN MODIFICADA - Cuando el usuario escribe, el chat reaparece
+# ============================================
 @csrf_exempt
 def enviar_mensaje(request):
     if request.method == 'POST':
@@ -727,6 +735,12 @@ def enviar_mensaje(request):
 
             conversation_key = request.session.get('conversation_key') or cliente.cedula
             request.session['conversation_key'] = conversation_key
+
+            # 👇 ELIMINAR EL CHAT DE LA LISTA DE OCULTOS (SI EXISTE) - PARA QUE REAPAREZCA
+            ChatsOcultos.objects.filter(
+                superadmin_cedula=SUPERADMIN_CEDULA,
+                conversation_key=conversation_key
+            ).delete()
 
             ChatMessage.objects.create(
                 cliente=cliente,
@@ -907,13 +921,14 @@ def password_reset_complete(request):
     """Cédula actualizada exitosamente"""
     return render(request, 'chat/password_reset_complete.html', _auth_brand_context())
 
-    # ============================================
-# BORRAR CONVERSACIÓN (SUPERADMIN)
+
+# ============================================
+# BORRAR CONVERSACIÓN (SUPERADMIN) - GUARDADO EN BD
 # ============================================
 
 @csrf_exempt
 def borrar_conversacion(request):
-    """Elimina una conversación del panel del SuperAdmin"""
+    """Elimina una conversación del panel del SuperAdmin (guardado en BD)"""
     if request.method != 'POST':
         return JsonResponse({'error': 'Método no permitido'}, status=405)
     
@@ -928,13 +943,11 @@ def borrar_conversacion(request):
         if not conversation_key:
             return JsonResponse({'error': 'Falta conversation_key'}, status=400)
         
-        # Guardar en sesión la lista de conversaciones ocultas
-        if 'hidden_conversations' not in request.session:
-            request.session['hidden_conversations'] = []
-        
-        if conversation_key not in request.session['hidden_conversations']:
-            request.session['hidden_conversations'].append(conversation_key)
-            request.session.modified = True
+        # 👇 GUARDAR EN BASE DE DATOS
+        ChatsOcultos.objects.get_or_create(
+            superadmin_cedula=SUPERADMIN_CEDULA,
+            conversation_key=conversation_key
+        )
         
         return JsonResponse({'success': True, 'message': 'Chat oculto del panel'})
         

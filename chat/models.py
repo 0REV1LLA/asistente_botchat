@@ -20,13 +20,21 @@ class Clientes(models.Model):
         HOMBRE = 'hombre', 'Hombre'
         MUJER = 'mujer', 'Mujer'
 
+    class Patologia(models.TextChoices):
+        DIABETES = 'diabetes', 'Diabetes'
+        HIPERTENSION = 'hipertension', 'Hipertensión'
+        ASMA = 'asma', 'Asma'
+        ALERGIA = 'alergia', 'Alergias'
+        TIROIDES = 'tiroides', 'Problemas de Tiroides'
+        OTRO = 'otro', 'Otra'
+
     cliente_id = models.AutoField(primary_key=True)
     cedula = models.CharField(max_length=50, unique=True)
     correo = models.EmailField(blank=True, null=True, unique=True)
     nombre = models.TextField(blank=True, null=True)
     apellido = models.TextField(blank=True, null=True)
     direccion = models.TextField(blank=True, null=True)
-    patologia = models.TextField(blank=True, null=True)
+    patologia = models.CharField(max_length=50, choices=Patologia.choices, blank=True, null=True)
     genero = models.CharField(max_length=10, choices=Genero.choices, blank=True, null=True)
     n_telefono = models.CharField(max_length=50, blank=True, null=True)
     fecha_nacimiento = models.DateField(blank=True, null=True)
@@ -64,6 +72,21 @@ class ChatMessage(models.Model):
     class Meta:
         db_table = 'chat_messages'
         ordering = ['created_at']
+
+
+class ChatsOcultos(models.Model):
+    """Modelo para guardar qué chats ha ocultado el SuperAdmin"""
+    superadmin_cedula = models.CharField(max_length=50)  # 'SuperAdminFarmaLuz'
+    conversation_key = models.CharField(max_length=100)
+    fecha_ocultado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'chats_ocultos'
+        unique_together = ('superadmin_cedula', 'conversation_key')  # Evita duplicados
+
+    def __str__(self):
+        return f"{self.superadmin_cedula} - {self.conversation_key}"
+
 
 class Categorias(models.Model):
     id_categoria = models.AutoField(primary_key=True)
@@ -135,4 +158,3 @@ class Almacen(models.Model):
     class Meta:
         managed = False  # ¡IMPORTANTE!
         db_table = 'almacen'
-
