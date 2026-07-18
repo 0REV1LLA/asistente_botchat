@@ -22,13 +22,13 @@
                 <div>
                     <p class="eyebrow">FarmaLuz</p>
                     <h1>Registro de cliente</h1>
-                    <p class="subtitle">{{ assistant_emoji|default:'💁‍♀️' }} Lucy guarda tus datos para que después puedas entrar con tu cédula.</p>
+                    <p class="subtitle">{{ assistant_emoji|default:'💁‍♀️' }} Lucy guarda tus datos para que después puedas entrar con tu cédula y contraseña.</p>
                 </div>
             </div>
 
             <a class="secondary-link secondary-link-top" href="{% url 'chat:login' %}">Ya tengo registro</a>
 
-            <form class="login-form register-form" method="post" action="{% url 'chat:registro' %}">
+            <form class="login-form register-form" method="post" action="{% url 'chat:registro' %}" id="registroForm">
                 {% csrf_token %}
                 <div class="form-grid">
                     <label class="field">
@@ -52,6 +52,55 @@
                             <input type="text" name="cedula" placeholder="Ej: 31437422" value="{{ form_values.cedula|default:'' }}" required minlength="7" maxlength="8">
                         </div>
                     </label>
+
+                    <!-- 👇 CAMPO CONTRASEÑA -->
+                    <label class="field field-full">
+                        <span>Contraseña</span>
+                        <div class="input-wrap">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" name="password" id="password"
+                                   placeholder="Mínimo 16 caracteres"
+                                   required
+                                   minlength="16"
+                                   pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?\":{}|<>
+                                   La contraseña debe tener: 16 caracteres, mayúscula, minúscula, número y especial.
+                        </div>
+                    </label>
+
+                    <!-- 👇 CAMPO CONFIRMAR CONTRASEÑA -->
+                    <label class="field field-full">
+                        <span>Confirmar contraseña</span>
+                        <div class="input-wrap">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" name="confirm_password" id="confirm_password"
+                                   placeholder="Repite tu contraseña"
+                                   required
+                                   minlength="16">
+                        </div>
+                    </label>
+
+                    <!-- 👇 INDICADORES DE REQUISITOS -->
+                    <div class="field field-full" id="passwordRequirements" style="font-size: 0.8rem; padding: 8px 16px; background: #f8fafc; border-radius: 12px; margin-top: -8px;">
+                        <p style="font-weight: 600; margin-bottom: 6px;">La contraseña debe cumplir:</p>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            <li id="reqLength" style="color: #dc2626; margin-bottom: 2px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos 16 caracteres
+                            </li>
+                            <li id="reqUppercase" style="color: #dc2626; margin-bottom: 2px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos una letra mayúscula
+                            </li>
+                            <li id="reqLowercase" style="color: #dc2626; margin-bottom: 2px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos una letra minúscula
+                            </li>
+                            <li id="reqNumber" style="color: #dc2626; margin-bottom: 2px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos un número
+                            </li>
+                            <li id="reqSpecial" style="color: #dc2626; margin-bottom: 2px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos un carácter especial (!@#$%^&*(),.?":{}|<>)
+                            </li>
+                        </ul>
+                    </div>
+
                     <label class="field field-full">
                         <span>Correo</span>
                         <div class="input-wrap">
@@ -93,9 +142,9 @@
                     </label>
                 </div>
 
-                <p class="hint">Después de registrarte, el sistema te enviará al acceso para pedir solo tu cédula.</p>
+                <p class="hint">Después de registrarte, el sistema te enviará al acceso para pedir tu cédula y contraseña.</p>
 
-                <button type="submit" class="submit-btn">
+                <button type="submit" class="submit-btn" id="submitBtn">
                     <span>Guardar registro</span>
                     <i class="fa-solid fa-arrow-right"></i>
                 </button>
@@ -106,5 +155,79 @@
             </form>
         </section>
     </main>
+
+    <!-- 👇 VALIDACIÓN EN TIEMPO REAL -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const password = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirm_password');
+
+        const reqLength = document.getElementById('reqLength');
+        const reqUppercase = document.getElementById('reqUppercase');
+        const reqLowercase = document.getElementById('reqLowercase');
+        const reqNumber = document.getElementById('reqNumber');
+        const reqSpecial = document.getElementById('reqSpecial');
+
+        function updateRequirements() {
+            const val = password.value;
+
+            // Longitud
+            if (val.length >= 16) {
+                reqLength.style.color = '#22c55e';
+                reqLength.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos 16 caracteres';
+            } else {
+                reqLength.style.color = '#dc2626';
+                reqLength.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos 16 caracteres';
+            }
+
+            // Mayúscula
+            if (/[A-Z]/.test(val)) {
+                reqUppercase.style.color = '#22c55e';
+                reqUppercase.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos una letra mayúscula';
+            } else {
+                reqUppercase.style.color = '#dc2626';
+                reqUppercase.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos una letra mayúscula';
+            }
+
+            // Minúscula
+            if (/[a-z]/.test(val)) {
+                reqLowercase.style.color = '#22c55e';
+                reqLowercase.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos una letra minúscula';
+            } else {
+                reqLowercase.style.color = '#dc2626';
+                reqLowercase.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos una letra minúscula';
+            }
+
+            // Número
+            if (/[0-9]/.test(val)) {
+                reqNumber.style.color = '#22c55e';
+                reqNumber.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos un número';
+            } else {
+                reqNumber.style.color = '#dc2626';
+                reqNumber.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos un número';
+            }
+
+            // Carácter especial
+            if (/[!@#$%^&*(),.?":{}|<>]/.test(val)) {
+                reqSpecial.style.color = '#22c55e';
+                reqSpecial.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos un carácter especial (!@#$%^&*(),.?":{}|<>)';
+            } else {
+                reqSpecial.style.color = '#dc2626';
+                reqSpecial.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos un carácter especial (!@#$%^&*(),.?":{}|<>)';
+            }
+        }
+
+        password.addEventListener('input', updateRequirements);
+
+        // Validar que las contraseñas coincidan antes de enviar
+        document.getElementById('registroForm').addEventListener('submit', function(e) {
+            if (password.value !== confirmPassword.value) {
+                e.preventDefault();
+                alert('⚠️ Las contraseñas no coinciden. Por favor, verifícalas.');
+                return false;
+            }
+        });
+    });
+    </script>
 </body>
 </html>
