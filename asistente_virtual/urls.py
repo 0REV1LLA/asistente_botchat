@@ -20,7 +20,7 @@ from simple_chatbot.views import SimpleChatbot
 from django.shortcuts import redirect
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('secret-admin/', admin.site.urls), #url predeterminada cambiada 
     path('chat/', include(('chat.urls', 'chat'), namespace='chat')),  # Login, chat y panel admin
     path('api/chatbot/', SimpleChatbot.as_view()),  # API del chatbot
     path('', lambda request: redirect('/chat/acceso/', permanent=False)),

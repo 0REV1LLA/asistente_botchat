@@ -59,6 +59,63 @@
                     <i class="fa-solid fa-arrow-right"></i>
                 </button>
 
+                <div style="text-align: center; margin-top: 16px;">
+                    <button type="button" class="btn-normativas" id="openNormativasBtn">
+                        <i class="fa-solid fa-book-open"></i> Lee nuestras normativas para evitar ser bloqueado
+                    </button>
+                </div>
+
+                <div class="modal-overlay" id="normativasModal" style="display: none;">
+                    <div class="modal-dialog normativas-dialog">
+                        <div class="modal-header">
+                            <div class="modal-icon">📋</div>
+                            <h2>Normativas de FarmaLuz</h2>
+                            <p class="modal-subtitle">Para garantizar una experiencia segura y respetuosa para todos</p>
+                        </div>
+                        <div class="modal-body">
+                            <ul class="normativas-list">
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>
+                                    <div>
+                                        <strong>No hacer spam</strong>
+                                        <span>No enviar múltiples mensajes en un corto período de tiempo.</span>
+                                    </div>
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>
+                                    <div>
+                                        <strong>Lenguaje respetuoso</strong>
+                                        <span>No hacer uso de malas palabras, lenguaje ofensivo o discriminatorio.</span>
+                                    </div>
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>
+                                    <div>
+                                        <strong>Privacidad</strong>
+                                        <span>No compartir información personal de otros usuarios sin su consentimiento.</span>
+                                    </div>
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>
+                                    <div>
+                                        <strong>Identidad</strong>
+                                        <span>No realizar intentos de suplantación de identidad o phishing.</span>
+                                    </div>
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>
+                                    <div>
+                                        <strong>Actividades ilegales</strong>
+                                        <span>No utilizar el sistema para actividades ilegales o fraudulentas.</span>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn-modal-accept" id="closeNormativasBtn">Entendido</button>
+                        </div>
+                    </div>
+                </div>
                 {% if error_message %}
                 <div class="error-box" id="errorBox">{{ error_message }}</div>
                 {% else %}
