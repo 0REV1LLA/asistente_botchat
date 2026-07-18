@@ -233,6 +233,14 @@ h1 {
     color: #8e99ad;
 }
 
+.input-wrap .lock2 {
+    position: absolute;
+    top: 35%;
+    left: 16px;
+    transform: translateY(-50%);
+    color: #8e99ad;
+}
+
 .input-wrap input {
     width: 100%;
     border: 1px solid #d8dee9;
@@ -445,6 +453,14 @@ body.confirm-open {
 }
 
 @media (max-width: 560px) {
+    .input-wrap .lock2 {
+        position: absolute;
+    top: 22%;
+    left: 16px;
+    transform: translateY(-50%);
+    color: #8e99ad;
+}
+
     .page-shell {
         padding: 14px;
         align-items: stretch;
