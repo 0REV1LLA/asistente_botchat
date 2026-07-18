@@ -30,7 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
 # Quick-start development settings - unsuitable for production
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-=3qzs_rx$@5vm+%c52c569#o9!m)@u91!92fa3=z*3)7k3qw83')
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-...')
 
 DEBUG = os.getenv('DEBUG', 'False').lower() in {'1', 'true', 'yes', 'on'}  # 👈 CAMBIADO A False por defecto
 

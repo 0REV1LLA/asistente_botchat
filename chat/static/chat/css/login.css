@@ -563,3 +563,37 @@ body.confirm-open {
     margin: 8px 0 16px 0;
     line-height: 1.4;
 }
+/*estilo del modal de bloqueo de cuenta*/
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+.modal-dialog {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.modal-icon {
+    font-size: 48px;
+    margin-bottom: 10px;
+}
+.btn-modal {
+    background: #1f2937;
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+}

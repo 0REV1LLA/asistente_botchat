@@ -17,6 +17,9 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.csrf import csrf_exempt
 from django.templatetags.static import static
 
+import re
+from django.contrib.auth.hashers import make_password, check_password
+
 from .models import Almacen, ChatMessage, Clientes, Productos, ChatsOcultos
 
 SUPERADMIN_CEDULA = 'SuperAdminFarmaLuz'
@@ -155,14 +158,14 @@ def _password_reset_form_context(**extra):
 
 def _send_reset_email(cliente, reset_url):
     """Envía el correo de recuperación"""
-    subject = 'Recuperación de cédula - FarmaLuz'
+    subject = 'Recuperación de Contraseña - FarmaLuz'
     
     lines = [
         f'Hola {cliente.nombre or "cliente"},',
         '',
-        'Recibimos una solicitud para recuperar tu cédula en FarmaLuz.',
+        'Recibimos una solicitud para recuperar tu contraseña en FarmaLuz.',
         '',
-        'Para restablecer tu cédula, haz clic en el siguiente enlace:',
+        'Para restablecer tu contraseña, haz clic en el siguiente enlace:',
         reset_url,
         '',
         'Este enlace es válido por 24 horas.',
@@ -485,11 +488,12 @@ def login_view(request):
         })
 
     cedula = request.POST.get('cedula', '').strip()
+    password = request.POST.get('password', '').strip()   # 👈 NUEVO
 
-    if not cedula:
+    if not cedula or not password:
         return render(request, 'login.html', {
-            'error_message': 'Debes ingresar tu cédula.',
-            'prefill_cedula': '',
+            'error_message': 'Debes ingresar tu cédula y contraseña.',
+            'prefill_cedula': cedula,
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
         }, status=400)
@@ -501,7 +505,34 @@ def login_view(request):
 
     if not cliente:
         return render(request, 'login.html', {
-            'error_message': 'Primero debes registrarte para acceder al sistema.',
+            'error_message': 'Cédula incorrecta o no registrada.',
+            'prefill_cedula': cedula,
+            'assistant_name': BOT_NAME,
+            'assistant_emoji': BOT_EMOJI,
+        }, status=400)
+
+    # Verificar si el cliente tiene contraseña (migración)
+    if not cliente.password:
+        return render(request, 'login.html', {
+            'error_message': 'Debes restablecer tu contraseña usando "¿Olvidaste tu contraseña?".',
+            'prefill_cedula': cedula,
+            'assistant_name': BOT_NAME,
+            'assistant_emoji': BOT_EMOJI,
+        }, status=400)
+
+    # Verificar bloqueo
+    if cliente.bloqueado:
+        return render(request, 'login.html', {
+            'error_message': 'Usuario bloqueado por incumplir las normas de esta página web.',
+            'prefill_cedula': cedula,
+            'assistant_name': BOT_NAME,
+            'assistant_emoji': BOT_EMOJI,
+        }, status=403)
+
+    # Verificar contraseña
+    if not check_password(password, cliente.password):
+        return render(request, 'login.html', {
+            'error_message': 'Contraseña incorrecta.',
             'prefill_cedula': cedula,
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
@@ -517,14 +548,12 @@ def login_view(request):
     request.session['cliente_nombre'] = _client_display_name(cliente)
     request.session['cliente_summary'] = _client_summary(cliente)
 
-    # 👇 REUTILIZAR EL CONVERSATION_KEY SI EXISTE
     if old_conversation_key:
         request.session['conversation_key'] = old_conversation_key
     else:
         request.session['conversation_key'] = cliente.cedula
 
     redirect_url = reverse('chat:admin_dashboard') if cliente.cedula == SUPERADMIN_CEDULA else reverse('chat:bot_chat')
-
     return redirect(redirect_url)
 
 
@@ -547,22 +576,24 @@ def registro_view(request):
     apellido = request.POST.get('apellido', '').strip()
     cedula = request.POST.get('cedula', '').strip()
     correo = request.POST.get('correo', '').strip()
-    # patologia = request.POST.get('patologia', '').strip()
     genero = request.POST.get('genero', '').strip().lower()
     direccion = request.POST.get('direccion', '').strip()
     n_telefono = request.POST.get('n_telefono', '').strip()
     fecha_nacimiento = request.POST.get('fecha_nacimiento', '').strip()
+    password = request.POST.get('password', '').strip()                 # 👈 NUEVO
+    confirm_password = request.POST.get('confirm_password', '').strip() # 👈 NUEVO
 
     required_fields = {
         'nombre': nombre,
         'apellido': apellido,
         'cedula': cedula,
         'correo': correo,
-        # 'patologia': patologia,
         'genero': genero,
         'direccion': direccion,
         'n_telefono': n_telefono,
         'fecha_nacimiento': fecha_nacimiento,
+        'password': password,
+        'confirm_password': confirm_password,
     }
 
     if any(not value for value in required_fields.values()):
@@ -573,10 +604,56 @@ def registro_view(request):
             'assistant_emoji': BOT_EMOJI,
         }, status=400)
 
-    # 👇 VALIDAR LONGITUD DE LA CÉDULA (NUEVO)
+    # Validar longitud de cédula
     if len(cedula) < 7 or len(cedula) > 8:
         return render(request, 'registro.html', {
             'error_message': '⚠️ La cédula debe tener entre 7 y 8 caracteres.',
+            'form_values': required_fields,
+            'assistant_name': BOT_NAME,
+            'assistant_emoji': BOT_EMOJI,
+        }, status=400)
+
+    # Validar contraseña
+    if password != confirm_password:
+        return render(request, 'registro.html', {
+            'error_message': '⚠️ Las contraseñas no coinciden.',
+            'form_values': required_fields,
+            'assistant_name': BOT_NAME,
+            'assistant_emoji': BOT_EMOJI,
+        }, status=400)
+
+    # Validar requisitos de contraseña
+    if len(password) < 16:
+        return render(request, 'registro.html', {
+            'error_message': '⚠️ La contraseña debe tener al menos 16 caracteres.',
+            'form_values': required_fields,
+            'assistant_name': BOT_NAME,
+            'assistant_emoji': BOT_EMOJI,
+        }, status=400)
+    if not re.search(r'[A-Z]', password):
+        return render(request, 'registro.html', {
+            'error_message': '⚠️ La contraseña debe contener al menos una letra mayúscula.',
+            'form_values': required_fields,
+            'assistant_name': BOT_NAME,
+            'assistant_emoji': BOT_EMOJI,
+        }, status=400)
+    if not re.search(r'[a-z]', password):
+        return render(request, 'registro.html', {
+            'error_message': '⚠️ La contraseña debe contener al menos una letra minúscula.',
+            'form_values': required_fields,
+            'assistant_name': BOT_NAME,
+            'assistant_emoji': BOT_EMOJI,
+        }, status=400)
+    if not re.search(r'[0-9]', password):
+        return render(request, 'registro.html', {
+            'error_message': '⚠️ La contraseña debe contener al menos un número.',
+            'form_values': required_fields,
+            'assistant_name': BOT_NAME,
+            'assistant_emoji': BOT_EMOJI,
+        }, status=400)
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return render(request, 'registro.html', {
+            'error_message': '⚠️ La contraseña debe contener al menos un carácter especial (!@#$%^&*(),.?":{}|<>)',
             'form_values': required_fields,
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
@@ -598,7 +675,6 @@ def registro_view(request):
             'assistant_emoji': BOT_EMOJI,
         }, status=400)
 
-    # 👇 VALIDAR SI LA CÉDULA YA EXISTE
     if Clientes.objects.filter(cedula=cedula).exists():
         return render(request, 'registro.html', {
             'error_message': '⚠️ Esta cédula ya está registrada en el sistema.',
@@ -607,7 +683,6 @@ def registro_view(request):
             'assistant_emoji': BOT_EMOJI,
         }, status=400)
 
-    # 👇 VALIDAR SI EL CORREO YA EXISTE
     if Clientes.objects.filter(correo=correo).exists():
         return render(request, 'registro.html', {
             'error_message': '⚠️ Este correo electrónico ya está registrado en el sistema.',
@@ -616,17 +691,17 @@ def registro_view(request):
             'assistant_emoji': BOT_EMOJI,
         }, status=400)
 
-    # Crear nuevo cliente
+    # Crear cliente con contraseña hasheada
     cliente = Clientes.objects.create(
         cedula=cedula,
         correo=correo,
         nombre=nombre,
         apellido=apellido,
-        # patologia=patologia,
         genero=genero,
         direccion=direccion,
         n_telefono=n_telefono,
         fecha_nacimiento=fecha_nacimiento or None,
+        password=make_password(password),   # 👈 HASHEAR CONTRASEÑA
     )
 
     request.session['login_prefill_cedula'] = cliente.cedula
@@ -773,11 +848,11 @@ def enviar_mensaje(request):
 
 
 # ============================================
-# RECUPERACIÓN DE CONTRASEÑA (CÉDULA)
+# RECUPERACIÓN DE CONTRASEÑA
 # ============================================
 
 def password_reset_request(request):
-    """Vista para solicitar recuperación de cédula"""
+    """Vista para solicitar recuperación de Contraseña"""
     if request.method == 'POST':
         correo = request.POST.get('correo', '').strip()
         
@@ -831,7 +906,7 @@ def password_reset_done(request):
 
 
 def password_reset_confirm(request, signed_token):
-    """Confirmar nueva cédula - Verificación por firma digital"""
+    """Confirmar nueva Contraseña - Verificación por firma digital"""
     try:
         print(f"🔐 Token recibido: {signed_token[:50]}...")
         
@@ -862,28 +937,29 @@ def password_reset_confirm(request, signed_token):
                 return render(request, 'chat/password_reset_confirm.html', {
                     'cliente': cliente,
                     'nombre_completo': _full_name(cliente) or 'Cliente',
-                    'error_message': 'Debes ingresar y confirmar la nueva cédula.'
+                    'error_message': 'Debes ingresar y confirmar la nueva contraseña.'
                 })
             
-            if len(new_password) < 6:
+            if len(new_password) < 16:
                 return render(request, 'chat/password_reset_confirm.html', {
                     'cliente': cliente,
                     'nombre_completo': _full_name(cliente) or 'Cliente',
-                    'error_message': 'La cédula debe tener al menos 6 caracteres.'
+                    'error_message': '⚠️ La contraseña debe tener al menos 16 caracteres.'
                 })
             
             if new_password != confirm_password:
                 return render(request, 'chat/password_reset_confirm.html', {
                     'cliente': cliente,
                     'nombre_completo': _full_name(cliente) or 'Cliente',
-                    'error_message': 'Las cédulas no coinciden.'
+                    'error_message': 'Las contraseñas no coinciden.'
                 })
             
-            # Actualizar cédula
-            cliente.cedula = new_password
+            # ✅ CORRECTO: Hashear la contraseña antes de guardar
+            from django.contrib.auth.hashers import make_password
+            cliente.password = make_password(new_password)
             cliente.save()
             
-            print(f"✅ Cédula actualizada para: {cliente.correo} - Nueva: {new_password}")
+            print(f"✅ Contraseña actualizada para: {cliente.correo}")
             
             # Limpiar sesión si existe
             _clear_password_reset_state(request)
@@ -918,7 +994,7 @@ def password_reset_confirm(request, signed_token):
 
 
 def password_reset_complete(request):
-    """Cédula actualizada exitosamente"""
+    """Contraseña actualizada exitosamente"""
     return render(request, 'chat/password_reset_complete.html', _auth_brand_context())
 
 

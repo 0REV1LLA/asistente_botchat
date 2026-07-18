@@ -33,7 +33,7 @@
             {% endif %}
 
             <a class="secondary-link secondary-link-top" href="{% url 'chat:registro' %}">Crear registro</a>
-            <a class="secondary-link secondary-link-top" href="{% url 'chat:password_reset' %}">Recuperar Cédula</a>
+            <a class="secondary-link secondary-link-top" href="{% url 'chat:password_reset' %}">Recuperacion de Contraseña</a>
 
             <form id="loginForm" class="login-form" method="post" action="{% url 'chat:login' %}" data-login-url="{% url 'chat:login' %}">
                 {% csrf_token %}
@@ -42,6 +42,13 @@
                     <div class="input-wrap">
                         <i class="fa-solid fa-id-card"></i>
                         <input type="text" name="cedula" id="cedula" placeholder="Ej: 12345678" autocomplete="username" value="{{ prefill_cedula|default:'' }}" required>
+                    </div>
+                </label>
+                <label class="field">
+                    <span>Contraseña</span>
+                    <div class="input-wrap">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" name="password" id="password" placeholder="Ingresa tu contraseña" required>
                     </div>
                 </label>
 
@@ -70,5 +77,16 @@
     </div>
 
     <script src="{% static 'chat/js/login.js' %}?v=2" defer></script>
+    
+    {% if error_message and 'bloqueado' in error_message %}
+        <div class="modal-overlay" id="blockedModal">
+            <div class="modal-dialog">
+                <div class="modal-icon">🚫</div>
+                <h2>Usuario bloqueado</h2>
+                <p>{{ error_message }}</p>
+                <button onclick="document.getElementById('blockedModal').style.display='none'" class="btn-modal">Aceptar</button>
+            </div>
+        </div>
+    {% endif %}
 </body>
 </html>

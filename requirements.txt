@@ -3,7 +3,4 @@ django-simple-chatbot==0.0.9
 djangorestframework==3.17.1
 nltk==3.9.4
 python-dotenv==1.2.2
-# Optional if you want MySQL instead of SQLite:
-# mysqlclient==2.2.8
-echo "dj-database-url==2.3.0" >> requirements.txtgunicorn==23.0.0
-psycopg2-binary==2.9.10
+gunicorn==23.0.0
