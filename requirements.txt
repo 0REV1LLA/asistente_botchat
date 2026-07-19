@@ -3,4 +3,7 @@ django-simple-chatbot==0.0.9
 djangorestframework==3.17.1
 nltk==3.9.4
 python-dotenv==1.2.2
-gunicorn==23.0.0dj-database-url==2.3.0
+gunicorn==23.0.0
+dj-database-url==2.3.0
+python-decouple==3.8
+mysqlclient==2.2.4
