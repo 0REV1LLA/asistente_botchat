@@ -62,8 +62,8 @@
                                    placeholder="Mínimo 16 caracteres"
                                    required
                                    minlength="16"
-                                   pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?\":{}|<>
-                                   La contraseña debe tener: 16 caracteres, mayúscula, minúscula, número y especial.
+                                   pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?\":{}|<>]).*"
+                                   title="La contraseña debe tener: 16 caracteres, mayúscula, minúscula, número y especial">
                         </div>
                     </label>
 
@@ -100,6 +100,23 @@
                             </li>
                         </ul>
                     </div>
+
+                    <!-- 👇 CAMPO PATOLOGÍA (NUEVO) -->
+                    <label class="field field-full">
+                        <span>Patología</span>
+                        <div class="input-wrap select-wrap">
+                            <i class="fa-solid fa-heart-pulse"></i>
+                            <select name="patologia" id="patologia">
+                                <option value="">Selecciona una patología</option>
+                                <option value="hipertension" {% if form_values.patologia == 'hipertension' %}selected{% endif %}>Hipertensión</option>
+                                <option value="diabetes" {% if form_values.patologia == 'diabetes' %}selected{% endif %}>Diabetes</option>
+                                <option value="oftalmologico" {% if form_values.patologia == 'oftalmologico' %}selected{% endif %}>Oftalmológico</option>
+                                <option value="pediatrico" {% if form_values.patologia == 'pediatrico' %}selected{% endif %}>Pediátrico</option>
+                                <option value="ginecologico" {% if form_values.patologia == 'ginecologico' %}selected{% endif %}>Ginecológico</option>
+                                <option value="otro" {% if form_values.patologia == 'otro' %}selected{% endif %}>Otros</option>
+                            </select>
+                        </div>
+                    </label>
 
                     <label class="field field-full">
                         <span>Correo</span>

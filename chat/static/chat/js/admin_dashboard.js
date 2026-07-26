@@ -252,65 +252,79 @@ document.addEventListener('DOMContentLoaded', () => {
         threadMessages.scrollTop = threadMessages.scrollHeight;
     }
 
-    function setActiveConversation(conversationKey) {
-        const conversation = conversations.find((item) => item.conversation_key === conversationKey);
-        if (!conversation) {
+// chat/static/chat/js/admin_dashboard.js
+function setActiveConversation(conversationKey) {
+    const conversation = conversations.find((item) => item.conversation_key === conversationKey);
+    if (!conversation) {
+        return;
+    }
+
+    document.querySelectorAll('.conversation-item').forEach((item) => {
+        item.classList.toggle('active', item.dataset.conversationKey === conversationKey);
+    });
+
+    title.textContent = conversation.client_name;
+    subtitle.textContent = `Último movimiento a las ${conversation.last_time}.`;
+    clientName.textContent = conversation.client_name;
+    clientCedula.textContent = conversation.cedula;
+
+    const patologiaElement = document.getElementById('threadClientPatologia');
+    if (patologiaElement) {
+        const patologiaMap = {
+            'hipertension': 'Hipertensión',
+            'diabetes': 'Diabetes',
+            'oftalmologico': 'Oftalmológico',
+            'pediatrico': 'Pediátrico',
+            'ginecologico': 'Ginecológico',
+            'otro': 'Otros'
+        };
+        patologiaElement.textContent = patologiaMap[conversation.patologia] || conversation.patologia || '-';
+    }
+
+    if (threadMeta) {
+        const bloqueoBadge = document.getElementById('block-status-badge');
+        if (bloqueoBadge) {
+            bloqueoBadge.remove();
+        }
+        const badge = document.createElement('span');
+        badge.id = 'block-status-badge';
+        badge.className = conversation.bloqueado ? 'status-badge blocked' : 'status-badge active';
+        badge.textContent = conversation.bloqueado ? 'Bloqueado' : 'Activo';
+        threadMeta.appendChild(badge);
+    }
+
+    emptyState.hidden = true;
+    chatThread.hidden = false;
+    renderMessages(conversation);
+    scrollThreadToBottom(false);
+}
+
+const logoutLink = document.querySelector('.js-logout-link');
+if (logoutLink) {
+    logoutLink.addEventListener('click', (event) => {
+        if (!confirmDialog) {
             return;
         }
 
-        document.querySelectorAll('.conversation-item').forEach((item) => {
-            item.classList.toggle('active', item.dataset.conversationKey === conversationKey);
-        });
-
-        title.textContent = conversation.client_name;
-        subtitle.textContent = `Último movimiento a las ${conversation.last_time}.`;
-        clientName.textContent = conversation.client_name;
-        clientCedula.textContent = conversation.cedula;
-
-        if (threadMeta) {
-            const bloqueoBadge = document.getElementById('block-status-badge');
-            if (bloqueoBadge) {
-                bloqueoBadge.remove();
+        event.preventDefault();
+        confirmDialog({
+            titleText: 'Cerrar sesión',
+            messageText: '¿Seguro que deseas cerrar sesión?',
+            acceptText: 'Cerrar sesión',
+        }).then((confirmed) => {
+            if (confirmed) {
+                window.location.href = logoutLink.href;
             }
-            const badge = document.createElement('span');
-            badge.id = 'block-status-badge';
-            badge.className = conversation.bloqueado ? 'status-badge blocked' : 'status-badge active';
-            badge.textContent = conversation.bloqueado ? 'Bloqueado' : 'Activo';
-            threadMeta.appendChild(badge);
-        }
-
-        emptyState.hidden = true;
-        chatThread.hidden = false;
-        renderMessages(conversation);
-        scrollThreadToBottom(false);
-    }
-
-    const logoutLink = document.querySelector('.js-logout-link');
-    if (logoutLink) {
-        logoutLink.addEventListener('click', (event) => {
-            if (!confirmDialog) {
-                return;
-            }
-
-            event.preventDefault();
-            confirmDialog({
-                titleText: 'Cerrar sesión',
-                messageText: '¿Seguro que deseas cerrar sesión?',
-                acceptText: 'Cerrar sesión',
-            }).then((confirmed) => {
-                if (confirmed) {
-                    window.location.href = logoutLink.href;
-                }
-            });
         });
-    }
+    });
+}
 
-    if (!conversations.length) {
-        conversationList.innerHTML = '';
-        emptyState.hidden = false;
-        chatThread.hidden = true;
-        return;
-    }
+if (!conversations.length) {
+    conversationList.innerHTML = '';
+    emptyState.hidden = false;
+    chatThread.hidden = true;
+    return;
+}
 
     // ============================================
     // RENDERIZAR CONVERSACIONES CON BOTÓN BORRAR

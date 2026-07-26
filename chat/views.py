@@ -22,6 +22,7 @@ from django.contrib.auth.hashers import make_password, check_password
 
 from .models import Almacen, ChatMessage, Clientes, Productos, ChatsOcultos
 
+#Configuraciones generales
 SUPERADMIN_CEDULA = 'SuperAdminFarmaLuz'
 BOT_NAME = 'Lucy'
 BOT_EMOJI = '💁‍♀️'
@@ -39,7 +40,7 @@ RAPID_COMMANDS = [
     ('adios', 'Despedida del chat'),
 ]
 
-
+#mensajes de error en consultas
 def _catalog_unavailable_message(error_details=""):
     if error_details:
         return f'El catálogo de productos no está disponible (Error: {error_details}).'
@@ -58,6 +59,7 @@ def _safe_product_list(queryset, limit=None):
         return None
 
 
+#configuracion de datos de admin
 def _ensure_superadmin_exists():
     cliente, created = Clientes.objects.get_or_create(
         cedula=SUPERADMIN_CEDULA,
@@ -80,7 +82,7 @@ def _auth_brand_context(extra=None):
         context.update(extra)
     return context
 
-
+#vistas de recuperacion de contraseña
 def _password_reset_session_payload(uidb64, token, correo):
     return {
         'uidb64': uidb64,
@@ -149,7 +151,7 @@ def _cliente_from_uidb64(uidb64):
 
     return Clientes.objects.filter(cliente_id=int(cliente_id)).first()
 
-
+#vistas para el correo de recuperacion
 def _password_reset_form_context(**extra):
     context = _auth_brand_context()
     context.update(extra)
@@ -190,7 +192,7 @@ def _send_reset_email(cliente, reset_url):
         print(f"❌ Error al enviar correo: {e}")
         raise
 
-
+#viista para el chat con el bot
 class ChatBotFarmaluz:
     def procesar_mensaje(self, mensaje):
         mensaje = mensaje.lower().strip()
@@ -305,6 +307,7 @@ Escribe `ayuda` para ver todos los comandos rápidos."""
         
         return self.mostrar_error()
     
+    #funcion de ayuda
     def mostrar_ayuda(self):
         lines = [f"{BOT_EMOJI} **COMANDOS RÁPIDOS:**", ""]
         for command, description in RAPID_COMMANDS:
@@ -424,7 +427,7 @@ def _get_chat_history(conversation_key):
 
 
 # ============================================
-# FUNCIÓN MODIFICADA - CON FILTRO DE CHATS OCULTOS EN BD
+# FUNCIÓN MODIFICADA - CON FILTRO DE CHATS OCULTOS EN BD Y PATOLOGÍA
 # ============================================
 def _build_conversations(request=None):
     conversations = OrderedDict()
@@ -453,6 +456,7 @@ def _build_conversations(request=None):
                 'client_name': _conversation_label(cliente) if cliente else conversation_key,
                 'client_summary': _client_summary(cliente) if cliente else conversation_key,
                 'cedula': cliente.cedula if cliente else conversation_key,
+                'patologia': cliente.patologia if cliente else None,  # 👈 PATOLOGÍA AGREGADA
                 'initials': _client_initials(cliente) if cliente else conversation_key[:2].upper(),
                 'avatar': _client_avatar(cliente) if cliente else '👤',
                 'last_time': _format_message_time(message.created_at),
@@ -488,7 +492,7 @@ def login_view(request):
         })
 
     cedula = request.POST.get('cedula', '').strip()
-    password = request.POST.get('password', '').strip()   # 👈 NUEVO
+    password = request.POST.get('password', '').strip()
 
     if not cedula or not password:
         return render(request, 'login.html', {
@@ -558,7 +562,7 @@ def login_view(request):
 
 
 # ============================================
-# FUNCIÓN MODIFICADA - CON VALIDACIÓN DE LONGITUD DE CÉDULA
+# FUNCIÓN MODIFICADA - CON VALIDACIÓN DE LONGITUD DE CÉDULA Y PATOLOGÍA
 # ============================================
 def registro_view(request):
     if request.method == 'GET':
@@ -576,18 +580,20 @@ def registro_view(request):
     apellido = request.POST.get('apellido', '').strip()
     cedula = request.POST.get('cedula', '').strip()
     correo = request.POST.get('correo', '').strip()
+    patologia = request.POST.get('patologia', '').strip()  # 👈 PATOLOGÍA AGREGADA
     genero = request.POST.get('genero', '').strip().lower()
     direccion = request.POST.get('direccion', '').strip()
     n_telefono = request.POST.get('n_telefono', '').strip()
     fecha_nacimiento = request.POST.get('fecha_nacimiento', '').strip()
-    password = request.POST.get('password', '').strip()                 # 👈 NUEVO
-    confirm_password = request.POST.get('confirm_password', '').strip() # 👈 NUEVO
+    password = request.POST.get('password', '').strip()
+    confirm_password = request.POST.get('confirm_password', '').strip()
 
     required_fields = {
         'nombre': nombre,
         'apellido': apellido,
         'cedula': cedula,
         'correo': correo,
+        'patologia': patologia,  # 👈 PATOLOGÍA AGREGADA
         'genero': genero,
         'direccion': direccion,
         'n_telefono': n_telefono,
@@ -691,17 +697,18 @@ def registro_view(request):
             'assistant_emoji': BOT_EMOJI,
         }, status=400)
 
-    # Crear cliente con contraseña hasheada
+    # Crear cliente con contraseña hasheada y patología
     cliente = Clientes.objects.create(
         cedula=cedula,
         correo=correo,
         nombre=nombre,
         apellido=apellido,
+        patologia=patologia,  # 👈 PATOLOGÍA AGREGADA
         genero=genero,
         direccion=direccion,
         n_telefono=n_telefono,
         fecha_nacimiento=fecha_nacimiento or None,
-        password=make_password(password),   # 👈 HASHEAR CONTRASEÑA
+        password=make_password(password),
     )
 
     request.session['login_prefill_cedula'] = cliente.cedula
@@ -740,7 +747,7 @@ def admin_dashboard_view(request):
     if not _is_admin_session(request):
         return redirect('chat:login')
 
-    conversations = _build_conversations(request)  # 👈 PASAR request
+    conversations = _build_conversations(request)
     active_conversation = conversations[0] if conversations else None
 
     return render(request, 'admin_dashboard.html', {
@@ -811,7 +818,7 @@ def enviar_mensaje(request):
             conversation_key = request.session.get('conversation_key') or cliente.cedula
             request.session['conversation_key'] = conversation_key
 
-            # 👇 ELIMINAR EL CHAT DE LA LISTA DE OCULTOS (SI EXISTE) - PARA QUE REAPAREZCA
+            # ELIMINAR EL CHAT DE LA LISTA DE OCULTOS (SI EXISTE) - PARA QUE REAPAREZCA
             ChatsOcultos.objects.filter(
                 superadmin_cedula=SUPERADMIN_CEDULA,
                 conversation_key=conversation_key
@@ -850,7 +857,6 @@ def enviar_mensaje(request):
 # ============================================
 # RECUPERACIÓN DE CONTRASEÑA
 # ============================================
-
 def password_reset_request(request):
     """Vista para solicitar recuperación de Contraseña"""
     if request.method == 'POST':

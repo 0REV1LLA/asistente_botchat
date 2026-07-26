@@ -24,5 +24,5 @@ urlpatterns = [
     path('chat/', include(('chat.urls', 'chat'), namespace='chat')),  # Login, chat y panel admin
     path('api/chatbot/', SimpleChatbot.as_view()),  # API del chatbot
     path('', lambda request: redirect('/chat/acceso/', permanent=False)),
-    path('accounts/', include('django.contrib.auth.urls')),
+    path('accounts/', include('django.contrib.auth.urls')), #Urls de django predeterminadas para recuperacion de contraseña
 ]
