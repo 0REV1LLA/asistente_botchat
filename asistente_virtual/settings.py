@@ -35,7 +35,7 @@ SECRET_KEY = config('SECRET_KEY')
 
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,asistente-botchat.up.railway.app').split(',')
+    for host in os.getenv('ALLOWED_HOSTS', 'asistente-botchat.vercel.app,www.asistente-botchat.vercel.app,*.vercel.app').split(',')
     if host.strip()
 ]
 
