@@ -1,0 +1,92 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+img{
+    width: 80px;
+    height: 52px; 
+    align-items: center;
+    justify-content: center;
+    margin: 0px;
+    margin-right: 0px;
+}
+
+.titulo-login{
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    margin-right:  25px;
+    font-style: italic;
+}
+
+.nombre_farmaluz-login{
+    color: white;
+    font-size: 30px;
+    margin-top: 10px;
+    padding: 0;
+}
+
+
+body {
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    background: url('/static/inventario/imagenes/fondo.jpg');
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+h1 {
+   text-align: center;
+   padding: 20px;
+}
+form {
+    background-color: white;
+    text-align: center;
+    width: 100%;
+    padding: 40px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: Blur(10px);
+    border-radius: 12px;
+    max-width: 400px;
+}
+
+h3 {
+    font-size: 16px;
+    text-align: center;
+    padding: 20px 10px;
+}
+label {
+    display: block;
+    font-size: 16px;
+    text-align: left;
+}
+
+input {
+    width: 100%;
+    padding: 16px 12px 12px;
+    margin-bottom: 24px;
+    border-radius: 6px;
+    border-color: black;
+    font-size: 16px;
+    background-color: rgba(241, 238, 238, 0.959);
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    background-color: #7cff02;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+button:hover {
+    background-color: #fbff00;
+}
