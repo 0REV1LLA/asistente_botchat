@@ -96,10 +96,17 @@ TEMPLATES = [
 WSGI_APPLICATION = 'asistente_virtual.wsgi.application'
 
 # ============================================
-# DATABASE - CONFIGURACIÓN PARA RAILWAY
+# DATABASE
 # ============================================
 DATABASES = {
-    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get("DB_NAME", "postgres"),
+        'USER': os.environ.get("DB_USER", "postgres"),
+        'PASSWORD': os.environ.get("DB_PASSWORD", "MiPassword123"),
+        'HOST': os.environ.get("DB_HOST", "localhost"),
+        'PORT': '5432',
+    }
 }
 
 MIGRATION_MODULES = {}
