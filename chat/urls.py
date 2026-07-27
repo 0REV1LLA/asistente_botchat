@@ -6,7 +6,7 @@ app_name = 'chat'
 urlpatterns = [
     # URLs de acceso
     path('registro/', views.registro_view, name='registro'),
-    path('', views.login_view, name='login'),
+    path('acceso/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
 
      # URLs de recuperación de contraseña
