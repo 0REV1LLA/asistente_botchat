@@ -11,7 +11,8 @@ pymysql.install_as_MySQLdb()
 from dotenv import load_dotenv
 import dj_database_url 
 from decouple import config
-
+from dotenv import load_dotenv
+load_dotenv()
 # --- SOLUCIÓN ROBUSTA PARA EVITAR EL ERROR DE LANCASTERSTEMMER EN PYTHON 3.13 ---
 import builtins
 try:
@@ -99,14 +100,10 @@ WSGI_APPLICATION = 'asistente_virtual.wsgi.application'
 # DATABASE
 # ============================================
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get("POSTGRES_NAME", "postgres"),
-        'USER': os.environ.get("POSTGRES_USER", "postgres"),
-        'PASSWORD': os.environ.get("POSTGRES_PASSWORD", "MiPassword123"),
-        'HOST': os.environ.get("POSTGRES_HOST", "localhost"),
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(
+            default=os.environ.get('DATABASE_URL'),
+            conn_max_age=600 # Ayuda al rendimiento manteniendo las conexiones abiertas
+        )
 }
 
 MIGRATION_MODULES = {}
