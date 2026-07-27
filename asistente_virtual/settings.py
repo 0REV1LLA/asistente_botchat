@@ -101,10 +101,10 @@ WSGI_APPLICATION = 'asistente_virtual.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get("DB_NAME", "postgres"),
-        'USER': os.environ.get("DB_USER", "postgres"),
-        'PASSWORD': os.environ.get("DB_PASSWORD", "MiPassword123"),
-        'HOST': os.environ.get("DB_HOST", "localhost"),
+        'NAME': os.environ.get("POSTGRES_NAME", "postgres"),
+        'USER': os.environ.get("POSTGRES_USER", "postgres"),
+        'PASSWORD': os.environ.get("POSTGRES_PASSWORD", "MiPassword123"),
+        'HOST': os.environ.get("POSTGRES_HOST", "localhost"),
         'PORT': '5432',
     }
 }
