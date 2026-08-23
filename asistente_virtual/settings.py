@@ -35,8 +35,28 @@ SECRET_KEY = config('SECRET_KEY')
 
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.getenv('ALLOWED_HOSTS', 'asistente-botchat.vercel.app,www.asistente-botchat.vercel.app,*.vercel.app').split(',')
+    for host in os.getenv('ALLOWED_HOSTS', '').split(',')
     if host.strip()
+]
+
+# Vercel expone estos nombres automáticamente en cada deployment.
+for vercel_host in (
+    os.getenv('VERCEL_URL'),
+    os.getenv('VERCEL_PROJECT_PRODUCTION_URL'),
+):
+    if vercel_host and vercel_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(vercel_host)
+
+# Permite el dominio de producción usado por este proyecto aunque Vercel no
+# haya inyectado todavía VERCEL_PROJECT_PRODUCTION_URL.
+for vercel_host in ('asistente-botchat.vercel.app', 'www.asistente-botchat.vercel.app'):
+    if vercel_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(vercel_host)
+
+CSRF_TRUSTED_ORIGINS = [
+    f'https://{host.lstrip(".")}'
+    for host in ALLOWED_HOSTS
+    if not host.startswith('*') and host not in ('127.0.0.1', 'localhost')
 ]
 
 # Application definition
@@ -156,6 +176,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 # ============================================
 
 if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
