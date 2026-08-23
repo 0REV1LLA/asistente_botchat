@@ -7,7 +7,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.core import signing
-from django.core.mail import EmailMultiAlternatives
+from django.core.mail import EmailMessage
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -168,23 +168,6 @@ def _send_reset_email(cliente, reset_url):
 
     subject = 'Recuperación de Contraseña - FarmaLuz'
     
-    lines = [
-        f'Hola {cliente.nombre or "cliente"},',
-        '',
-        'Recibimos una solicitud para recuperar tu contraseña en FarmaLuz.',
-        '',
-        'Para restablecer tu contraseña, haz clic en el siguiente enlace:',
-        reset_url,
-        '',
-        'Este enlace es válido por 24 horas.',
-        '',
-        'Si no realizaste esta solicitud, ignora este correo.',
-        '',
-        'Saludos,',
-        'Equipo FarmaLuz'
-    ]
-    
-    text_body = '\n'.join(lines)
     safe_name = escape(cliente.nombre or 'cliente')
     safe_url = escape(reset_url, quote=True)
     html_body = f'''<!doctype html>
@@ -194,6 +177,7 @@ def _send_reset_email(cliente, reset_url):
     <p>Recibimos una solicitud para recuperar tu contraseña en FarmaLuz.</p>
     <p>Haz clic en el siguiente botón para abrir el formulario de nueva contraseña:</p>
     <p><a href="{safe_url}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">Crear nueva contraseña</a></p>
+    <p>Si el botón no funciona, abre este enlace:<br><a href="{safe_url}">{safe_url}</a></p>
     <p>Este enlace es válido por 24 horas.</p>
     <p>Si no realizaste esta solicitud, ignora este correo.</p>
     <p>Saludos,<br>Equipo FarmaLuz</p>
@@ -201,13 +185,13 @@ def _send_reset_email(cliente, reset_url):
 </html>'''
 
     try:
-        message = EmailMultiAlternatives(
+        message = EmailMessage(
             subject,
-            text_body,
+            html_body,
             settings.DEFAULT_FROM_EMAIL,
             [cliente.correo],
         )
-        message.attach_alternative(html_body, 'text/html')
+        message.content_subtype = 'html'
         message.send(fail_silently=False)
         print(f"✅ Correo enviado a: {cliente.correo}")
         print(f"🔗 Enlace: {reset_url}")
