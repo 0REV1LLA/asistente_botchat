@@ -182,7 +182,7 @@ def _send_reset_email(cliente, reset_url):
         send_mail(
             subject,
             '\n'.join(lines),
-            settings.EMAIL_HOST_USER,
+            settings.DEFAULT_FROM_EMAIL,
             [cliente.correo],
             fail_silently=False,
         )
@@ -881,11 +881,10 @@ def password_reset_request(request):
             signed_token = _build_reset_signature(uidb64, token)
             print(f"🔐 Signed Token: {signed_token[:50]}...")
             
-            reset_url = request.build_absolute_uri(
-                reverse('chat:password_reset_confirm', kwargs={
-                    'signed_token': signed_token
-                })
-            )
+            reset_path = reverse('chat:password_reset_confirm', kwargs={
+                'signed_token': signed_token
+            })
+            reset_url = f'{settings.PUBLIC_URL}{reset_path}' if settings.PUBLIC_URL else request.build_absolute_uri(reset_path)
             
             print(f"🔗 URL: {reset_url}")
             
@@ -900,8 +899,8 @@ def password_reset_request(request):
         except Exception as e:
             print(f"❌ Error en password_reset_request: {e}")
             traceback.print_exc()
-            return render(request, 'chat/password_reset_form.html', 
-                         {'error_message': f'Ocurrió un error: {str(e)}'})
+            return render(request, 'chat/password_reset_form.html',
+                         {'error_message': 'No fue posible enviar el correo. Intenta nuevamente más tarde.'})
     
     return render(request, 'chat/password_reset_form.html')
 

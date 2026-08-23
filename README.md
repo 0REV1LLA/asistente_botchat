@@ -67,3 +67,22 @@ DB_PORT=3306
 - Si no existen tablas de catálogo de productos en la base activa, el bot responde sin romper la aplicación.
 - `db.sqlite3` y `.env` quedan fuera del repositorio.
 - Usa tu propio entorno de Python; el proyecto no depende de una carpeta `.venv` versionada aquí.
+
+## Recuperación de contraseña en Vercel
+
+En Vercel, agrega estas variables en **Settings > Environment Variables** y vuelve a desplegar:
+
+```env
+SECRET_KEY=una-clave-larga-y-aleatoria
+DEBUG=False
+PUBLIC_URL=https://asistente-botchat.vercel.app
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_USE_SSL=False
+EMAIL_HOST_USER=tu-cuenta@gmail.com
+EMAIL_HOST_PASSWORD=tu-contraseña-de-aplicación-de-16-caracteres
+DEFAULT_FROM_EMAIL=tu-cuenta@gmail.com
+```
+
+Para Gmail, `EMAIL_HOST_PASSWORD` debe ser una contraseña de aplicación, no la contraseña normal de la cuenta. No guardes estas variables en Git. Si la contraseña SMTP que estaba escrita en el código fue real, revócala y genera una nueva antes de configurar Vercel.
