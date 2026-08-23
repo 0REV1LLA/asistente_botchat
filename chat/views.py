@@ -1,12 +1,13 @@
 import json
 import secrets
 import traceback
+from html import escape
 from collections import OrderedDict
 from datetime import timedelta
 
 from django.conf import settings
 from django.core import signing
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -183,14 +184,31 @@ def _send_reset_email(cliente, reset_url):
         'Equipo FarmaLuz'
     ]
     
+    text_body = '\n'.join(lines)
+    safe_name = escape(cliente.nombre or 'cliente')
+    safe_url = escape(reset_url, quote=True)
+    html_body = f'''<!doctype html>
+<html lang="es">
+<body style="font-family: Arial, sans-serif; line-height: 1.5; color: #1f2937;">
+    <p>Hola {safe_name},</p>
+    <p>Recibimos una solicitud para recuperar tu contraseña en FarmaLuz.</p>
+    <p>Haz clic en el siguiente botón para abrir el formulario de nueva contraseña:</p>
+    <p><a href="{safe_url}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">Crear nueva contraseña</a></p>
+    <p>Este enlace es válido por 24 horas.</p>
+    <p>Si no realizaste esta solicitud, ignora este correo.</p>
+    <p>Saludos,<br>Equipo FarmaLuz</p>
+</body>
+</html>'''
+
     try:
-        send_mail(
+        message = EmailMultiAlternatives(
             subject,
-            '\n'.join(lines),
+            text_body,
             settings.DEFAULT_FROM_EMAIL,
             [cliente.correo],
-            fail_silently=False,
         )
+        message.attach_alternative(html_body, 'text/html')
+        message.send(fail_silently=False)
         print(f"✅ Correo enviado a: {cliente.correo}")
         print(f"🔗 Enlace: {reset_url}")
     except Exception as e:
