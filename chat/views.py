@@ -160,6 +160,11 @@ def _password_reset_form_context(**extra):
 
 def _send_reset_email(cliente, reset_url):
     """Envía el correo de recuperación"""
+    if not settings.DEFAULT_FROM_EMAIL or not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+        raise RuntimeError(
+            'Faltan EMAIL_HOST_USER, EMAIL_HOST_PASSWORD o DEFAULT_FROM_EMAIL en las variables de entorno.'
+        )
+
     subject = 'Recuperación de Contraseña - FarmaLuz'
     
     lines = [
