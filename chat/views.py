@@ -1,12 +1,13 @@
 import json
 import secrets
 import traceback
+import binascii
 from collections import OrderedDict
 from datetime import timedelta
 
 from django.conf import settings
 from django.core import signing
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
@@ -197,14 +198,14 @@ def _send_reset_email(cliente, reset_url):
             'nombre': cliente.nombre or 'cliente',
             'reset_url': reset_url,
         })
-        send_mail(
+        message = EmailMultiAlternatives(
             subject,
             '\n'.join(lines),
             settings.DEFAULT_FROM_EMAIL,
             [cliente.correo],
-            fail_silently=False,
-            html_message=html_body,
         )
+        message.attach_alternative(html_body, 'text/html')
+        message.send(fail_silently=False)
         print(f"✅ Correo enviado a: {cliente.correo}")
         print(f"🔗 Enlace: {reset_url}")
     except Exception as e:
@@ -899,9 +900,10 @@ def password_reset_request(request):
             # Construir URL de confirmación con firma
             signed_token = _build_reset_signature(uidb64, token)
             print(f"🔐 Signed Token: {signed_token[:50]}...")
+            email_token = urlsafe_base64_encode(force_bytes(signed_token))
             
             reset_path = reverse('chat:password_reset_confirm', kwargs={
-                'signed_token': signed_token
+                'signed_token': email_token
             })
             reset_url = f'{settings.PUBLIC_URL}{reset_path}' if settings.PUBLIC_URL else request.build_absolute_uri(reset_path)
             
@@ -933,6 +935,15 @@ def password_reset_confirm(request, signed_token):
     """Confirmar nueva Contraseña - Verificación por firma digital"""
     try:
         print(f"🔐 Token recibido: {signed_token[:50]}...")
+
+        # Los enlaces nuevos usan Base64 URL-safe para evitar que los clientes
+        # de correo separen el token por sus caracteres especiales.
+        try:
+            decoded_token = force_str(urlsafe_base64_decode(signed_token))
+            if ':' in decoded_token:
+                signed_token = decoded_token
+        except (TypeError, ValueError, OverflowError, binascii.Error):
+            pass
         
         # Decodificar el token firmado
         payload = _decode_reset_signature(signed_token)
