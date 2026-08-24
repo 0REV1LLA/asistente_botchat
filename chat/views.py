@@ -905,7 +905,11 @@ def password_reset_request(request):
             reset_path = reverse('chat:password_reset_confirm', kwargs={
                 'signed_token': email_token
             })
-            reset_url = f'{settings.PUBLIC_URL}{reset_path}' if settings.PUBLIC_URL else request.build_absolute_uri(reset_path)
+            public_url = settings.PUBLIC_URL
+            if public_url and any(character in public_url for character in '[]()'):
+                print('⚠️ PUBLIC_URL contiene formato inválido; se usará el dominio de la solicitud.')
+                public_url = ''
+            reset_url = f'{public_url}{reset_path}' if public_url else request.build_absolute_uri(reset_path)
             
             print(f"🔗 URL: {reset_url}")
             
