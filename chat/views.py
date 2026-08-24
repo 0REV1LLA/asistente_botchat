@@ -9,6 +9,7 @@ from django.core import signing
 from django.core.mail import send_mail
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
@@ -192,12 +193,17 @@ def _send_reset_email(cliente, reset_url):
     ]
 
     try:
+        html_body = render_to_string('chat/password_reset_email.html', {
+            'nombre': cliente.nombre or 'cliente',
+            'reset_url': reset_url,
+        })
         send_mail(
             subject,
             '\n'.join(lines),
             settings.DEFAULT_FROM_EMAIL,
             [cliente.correo],
             fail_silently=False,
+            html_message=html_body,
         )
         print(f"✅ Correo enviado a: {cliente.correo}")
         print(f"🔗 Enlace: {reset_url}")
