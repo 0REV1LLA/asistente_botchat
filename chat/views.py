@@ -162,6 +162,14 @@ def _password_reset_form_context(**extra):
 def _send_reset_email(cliente, reset_url):
     """Envía el correo de recuperación"""
     if not settings.DEFAULT_FROM_EMAIL or not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+        print(
+            '❌ SMTP incompleto: '
+            f'backend={settings.EMAIL_BACKEND}, '
+            f'host={settings.EMAIL_HOST!r}, '
+            f'usuario_configurado={bool(settings.EMAIL_HOST_USER)}, '
+            f'password_configurada={bool(settings.EMAIL_HOST_PASSWORD)}, '
+            f'remitente_configurado={bool(settings.DEFAULT_FROM_EMAIL)}'
+        )
         raise RuntimeError(
             'Faltan EMAIL_HOST_USER, EMAIL_HOST_PASSWORD o DEFAULT_FROM_EMAIL en las variables de entorno.'
         )

@@ -1,0 +1,17 @@
+Django==5.2
+Uso: framework principal del proyecto; maneja vistas, rutas, sesiones, plantillas y ORM.
+
+django-simple-chatbot==0.0.9
+Uso: dependencia auxiliar del ecosistema del chatbot.
+
+djangorestframework==3.17.1
+Uso: soporte para endpoints API.
+
+nltk==3.9.4
+Uso: soporte para procesamiento de lenguaje natural.
+
+python-dotenv==1.2.2
+Uso: carga variables de entorno para configuración local.
+
+psycopg2-binary==2.9.12
+Uso: conexión con PostgreSQL/Supabase.

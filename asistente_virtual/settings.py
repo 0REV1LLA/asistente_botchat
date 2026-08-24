@@ -145,9 +145,11 @@ EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', os.getenv('EMAIL_USERNAME', '')).strip()
+# Gmail muestra las contraseñas de aplicación separadas por espacios; SMTP debe
+# recibirlas sin esos espacios.
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', os.getenv('EMAIL_PASSWORD', '')).replace(' ', '').strip()
+DEFAULT_FROM_EMAIL = (os.getenv('DEFAULT_FROM_EMAIL', '').strip() or EMAIL_HOST_USER)
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '20'))
 PUBLIC_URL = os.getenv('PUBLIC_URL', '').rstrip('/')
 
