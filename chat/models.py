@@ -97,7 +97,7 @@ class Categorias(models.Model):
         return self.nombre_categoria
     
     class Meta:
-        managed = False  # ¡IMPORTANTE!
+        managed = True  # ¡IMPORTANTE!
         db_table = 'categorias'
 
 class SubCategoriasNivel1(models.Model):
@@ -109,7 +109,7 @@ class SubCategoriasNivel1(models.Model):
         return self.nombre_sub_categoria
 
     class Meta:
-        managed = False  # ¡IMPORTANTE!
+        managed = True  # ¡IMPORTANTE!
         db_table = 'sub_categorias_nivel_1'
 
 class SubCategoriasNivel2(models.Model):
@@ -121,7 +121,7 @@ class SubCategoriasNivel2(models.Model):
         return self.nombre_sub_categoria_nivel_2
     
     class Meta:
-        managed = False  # ¡IMPORTANTE!
+        managed = True  # ¡IMPORTANTE!
         db_table = 'sub_categorias_nivel_2'
 
 class Productos(models.Model):
@@ -148,7 +148,7 @@ class Productos(models.Model):
         return self.nombre_producto or "Producto Desactivado"
 
     class Meta:
-        managed = False  # ¡IMPORTANTE!
+        managed = True  # ¡IMPORTANTE!
         db_table = 'productos'
 
 class Almacen(models.Model):
@@ -157,5 +157,5 @@ class Almacen(models.Model):
     cantidad = models.IntegerField(blank=True, null=True)
 
     class Meta:
-        managed = False  # ¡IMPORTANTE!
+        managed = True  # ¡IMPORTANTE!
         db_table = 'almacen'
