@@ -152,7 +152,7 @@ class Productos(models.Model):
         db_table = 'productos'
 
 class Almacen(models.Model):
-    id = models.AutoField(db_column='ID', primary_key=True)  # Field name made lowercase.
+    id = models.AutoField(primary_key=True)
     id_producto = models.ForeignKey(Productos, on_delete=models.CASCADE, db_column='id_producto', blank=True, null=True, related_name="almacen")
     cantidad = models.IntegerField(blank=True, null=True)
 

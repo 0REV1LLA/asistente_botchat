@@ -695,7 +695,7 @@ def registro_view(request):
 
     if cedula == SUPERADMIN_CEDULA:
         return render(request, 'registro.html', {
-            'error_message': 'Esa cédula está reservada para el superadministrador.',
+            'error_message': 'Coloque un número de cédula válido.',
             'form_values': required_fields,
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
