@@ -120,14 +120,12 @@ WSGI_APPLICATION = 'asistente_virtual.wsgi.application'
 # ============================================
 database_url = os.getenv('DATABASE_URL', '').strip()
 
-# Supabase también puede configurarse con sus variables separadas. Esto evita
-# que Django reciba una configuración vacía cuando DATABASE_URL no fue creada.
 if not database_url:
     postgres_host = os.getenv('POSTGRES_HOST', '').strip()
     postgres_user = os.getenv('POSTGRES_USER', '').strip()
     postgres_password = os.getenv('POSTGRES_PASSWORD', '')
     postgres_name = os.getenv('POSTGRES_NAME', 'postgres').strip()
-    postgres_port = os.getenv('POSTGRES_PORT', '5432').strip()
+    postgres_port = os.getenv('POSTGRES_PORT', '6543').strip()
 
     if postgres_host and postgres_user and postgres_password:
         database_url = (
@@ -149,10 +147,8 @@ DATABASES = {
     )
 }
 
-# ⚠️ Vital para que Supabase Pooler (puerto 6543) no bloquee transacciones ni borrados
-DATABASES['default']['OPTIONS'] = {
-    'DISABLE_SERVER_SIDE_CURSORS': True,
-}
+# ✅ CONFIGURACIÓN CORRECTA (Fuera de DATABASES, como variable global)
+DISABLE_SERVER_SIDE_CURSORS = True
 
 MIGRATION_MODULES = {}
 
