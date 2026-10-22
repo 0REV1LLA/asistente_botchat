@@ -149,6 +149,11 @@ DATABASES = {
     )
 }
 
+# ⚠️ Vital para que Supabase Pooler (puerto 6543) no bloquee transacciones ni borrados
+DATABASES['default']['OPTIONS'] = {
+    'DISABLE_SERVER_SIDE_CURSORS': True,
+}
+
 MIGRATION_MODULES = {}
 
 # Password validation
