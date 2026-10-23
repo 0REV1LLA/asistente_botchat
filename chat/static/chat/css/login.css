@@ -199,23 +199,31 @@ h1 {
     grid-column: 1 / -1;
 }
 
-.select-wrap select {
-    width: 100%;
+.input-wrap.select-wrap {
+    position: relative;
+    background: #f9fafc;
     border: 1px solid #d8dee9;
     border-radius: 16px;
-    background: #f9fafc;
+    display: flex;
+    align-items: center;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.input-wrap.select-wrap:focus-within {
+    border-color: rgba(18, 183, 106, 0.72);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(18, 183, 106, 0.14);
+}
+
+.select-wrap select {
+    width: 100%;
+    border: none;
+    background: transparent;
     padding: 15px 16px 15px 48px;
     font: inherit;
     color: var(--text);
     outline: none;
     appearance: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.select-wrap select:focus {
-    border-color: rgba(18, 183, 106, 0.72);
-    background: #fff;
-    box-shadow: 0 0 0 4px rgba(18, 183, 106, 0.14);
 }
 
 .field span {
@@ -235,6 +243,8 @@ h1 {
     left: 16px;
     transform: translateY(-50%);
     color: #8e99ad;
+    z-index: 2;
+    pointer-events: none;
 }
 
 .input-wrap .lock2 {
@@ -245,7 +255,6 @@ h1 {
     color: #8e99ad;
     font-size: 16px;
 }
-
 .input-wrap input {
     width: 100%;
     border: 1px solid #d8dee9;
