@@ -199,19 +199,23 @@ h1 {
     grid-column: 1 / -1;
 }
 
-.select-wrap {
-    padding-right: 14px;
-}
-
 .select-wrap select {
     width: 100%;
-    border: 0;
-    background: transparent;
+    border: 1px solid #d8dee9;
+    border-radius: 16px;
+    background: #f9fafc;
     padding: 15px 16px 15px 48px;
     font: inherit;
     color: var(--text);
     outline: none;
     appearance: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.select-wrap select:focus {
+    border-color: rgba(18, 183, 106, 0.72);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(18, 183, 106, 0.14);
 }
 
 .field span {

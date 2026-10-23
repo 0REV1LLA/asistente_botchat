@@ -35,21 +35,21 @@
                         <span>Nombre</span>
                         <div class="input-wrap">
                             <i class="fa-solid fa-user"></i>
-                            <input type="text" name="nombre" placeholder="Ej: Luis" value="{{ form_values.nombre|default:'' }}" required>
+                            <input type="text" name="nombre" placeholder="Ingresa tu nombre" value="{{ form_values.nombre|default:'' }}" required>
                         </div>
                     </label>
                     <label class="field">
                         <span>Apellido</span>
                         <div class="input-wrap">
                             <i class="fa-solid fa-user-tag"></i>
-                            <input type="text" name="apellido" placeholder="Ej: Revilla" value="{{ form_values.apellido|default:'' }}" required>
+                            <input type="text" name="apellido" placeholder="Ingresa tu apellido" value="{{ form_values.apellido|default:'' }}" required>
                         </div>
                     </label>
                     <label class="field field-full">
                         <span>Cédula</span>
                         <div class="input-wrap">
                             <i class="fa-solid fa-id-card"></i>
-                            <input type="text" name="cedula" placeholder="Ej: 31437422" value="{{ form_values.cedula|default:'' }}" required minlength="7" maxlength="8">
+                            <input type="text" name="cedula" placeholder="Ingresa tu cédula" value="{{ form_values.cedula|default:'' }}" required minlength="7" maxlength="8">
                         </div>
                     </label>
 
@@ -62,8 +62,7 @@
                                    placeholder="Mínimo 16 caracteres"
                                    required
                                    minlength="16"
-                                   pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?\":{}|<>]).*"
-                                   title="La contraseña debe tener: 16 caracteres, mayúscula, minúscula, número y especial">
+                                   pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&amp;*(),.?&quot;:{}|&lt;&gt;]).*">
                         </div>
                     </label>
 
