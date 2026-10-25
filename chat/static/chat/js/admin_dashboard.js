@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializar menú lateral
     initSidebar();
 
-    function scrollThreadToBottom(smooth = true) {
+function scrollThreadToBottom(smooth = true) {
         if (!threadMessages) {
             return;
         }
@@ -240,8 +240,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const bubble = document.createElement('article');
             bubble.className = `message ${bubbleClassFor(message)}`;
 
+            const labelText = (bubbleClassFor(message) === 'client') ? 'Cliente' : (message.sender_label || '');
+
             bubble.innerHTML = `
-                <div class="message-label">${escapeHtml(message.sender_label || '')}</div>
+                <div class="message-label">${escapeHtml(labelText)}</div>
                 <div class="message-text">${formatMessage(message.text)}</div>
                 <span class="msg-time">${escapeHtml(message.time)}</span>
             `;
