@@ -217,9 +217,8 @@ h1 {
 
 .select-wrap select {
     width: 100%;
-    border: 1px solid #d8dee9;
-    border-radius: 16px;
-    background: #f9fafc;
+    border: none;
+    background: transparent;
     padding: 15px 16px 15px 48px;
     font: inherit;
     color: var(--text);
