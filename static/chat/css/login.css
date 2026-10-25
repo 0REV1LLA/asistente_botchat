@@ -273,6 +273,33 @@ h1 {
     box-shadow: 0 0 0 4px rgba(18, 183, 106, 0.14);
 }
 
+.input-wrap .lock2 {
+    position: absolute;
+    top: 50%;
+    left: 16px;
+    transform: translateY(-50%);
+    color: #8e99ad;
+    font-size: 16px;
+}
+
+.toggle-password {
+    position: absolute;
+    top: 50%;
+    right: 16px;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #8e99ad;
+    cursor: pointer;
+    font-size: 16px;
+    z-index: 2;
+    padding: 0;
+}
+
+.toggle-password:hover {
+    color: var(--text);
+}
+
 .hint {
     margin: 0;
     color: var(--muted);
