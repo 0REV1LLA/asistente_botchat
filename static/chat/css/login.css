@@ -205,8 +205,6 @@ h1 {
     background: #f9fafc;
     border: 1px solid #d8dee9;
     border-radius: 16px;
-    display: flex;
-    align-items: center;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
@@ -218,14 +216,15 @@ h1 {
 
 /* 2. Inputs y selects internos (sin borde ni fondo propio, heredan del contenedor) */
 .input-wrap input,
-.select-wrap select {
+.input-wrap select {
     width: 100%;
     border: none;
     background: transparent;
-    padding: 15px 48px 15px 48px; /* Espacio simétrico a la izquierda y derecha para íconos y botones */
+    padding: 15px 16px 15px 48px;
     font: inherit;
     color: var(--text);
     outline: none;
+    display: block;
 }
 
 /* 3. Estilo general de etiquetas de texto */
@@ -236,7 +235,7 @@ h1 {
     font-weight: 600;
 }
 
-/* 4. Íconos de la izquierda (Candado, cédula, etc.) */
+/* 4. Íconos de la izquierda (Candado, cédula, usuario, etc.) */
 .input-wrap i,
 .input-wrap .lock2 {
     position: absolute;
@@ -262,9 +261,10 @@ h1 {
     font-size: 16px;
     z-index: 3;
     padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
 }
 
 .toggle-password:hover {
