@@ -44,11 +44,15 @@
                         <input type="text" name="cedula" id="cedula" placeholder="Ej: 12345678" autocomplete="username" value="{{ prefill_cedula|default:'' }}" required>
                     </div>
                 </label>
+                
                 <label class="field">
                     <span>Contraseña</span>
                     <div class="input-wrap">
-                        <i class="fa-solid fa-lock"></i>
-                        <input type="password" name="password" id="password" placeholder="Ingresa tu contraseña" required>
+                        <i class="fa-solid fa-lock lock2"></i>
+                        <input type="password" name="password" id="password" placeholder="Ingresa tu contraseña" required style="padding-right: 48px;">
+                        <button type="button" class="toggle-password" id="togglePassword">
+                            <i class="fa-solid fa-eye" id="eyeIconPassword"></i>
+                        </button>
                     </div>
                 </label>
 
@@ -134,6 +138,24 @@
     </div>
 
     <script src="{% static 'chat/js/login.js' %}?v=2" defer></script>
+    
+    <!-- SCRIPT PARA EL BOTÓN DEL OJO EN EL LOGIN -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleBtn = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIconPassword');
+
+            if (toggleBtn && passwordInput && eyeIcon) {
+                toggleBtn.addEventListener('click', function() {
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
+                    eyeIcon.classList.toggle('fa-eye');
+                    eyeIcon.classList.toggle('fa-eye-slash');
+                });
+            }
+        });
+    </script>
     
     {% if error_message and 'bloqueado' in error_message %}
         <div class="modal-overlay" id="blockedModal">
