@@ -181,98 +181,108 @@
 
     <!-- 👇 VALIDACIÓN EN TIEMPO REAL -->
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-    const password = document.getElementById('password');
-    const confirmPassword = document.getElementById('confirm_password');
+        document.addEventListener('DOMContentLoaded', function() {
+            const password = document.getElementById('password');
+            const confirmPassword = document.getElementById('confirm_password');
 
-    const reqLength = document.getElementById('reqLength');
-    const reqUppercase = document.getElementById('reqUppercase');
-    const reqLowercase = document.getElementById('reqLowercase');
-    const reqNumber = document.getElementById('reqNumber');
-    const reqSpecial = document.getElementById('reqSpecial');
+            const reqLength = document.getElementById('reqLength');
+            const reqUppercase = document.getElementById('reqUppercase');
+            const reqLowercase = document.getElementById('reqLowercase');
+            const reqNumber = document.getElementById('reqNumber');
+            const reqSpecial = document.getElementById('reqSpecial');
 
-    function updateRequirements() {
-        const val = password.value;
+            function updateRequirements() {
+                const val = password.value;
 
-        // Longitud
-        if (val.length >= 16) {
-            reqLength.style.color = '#22c55e';
-            reqLength.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos 16 caracteres';
-        } else {
-            reqLength.style.color = '#dc2626';
-            reqLength.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos 16 caracteres';
-        }
+                if (reqLength) {
+                    if (val.length >= 16) {
+                        reqLength.style.color = '#22c55e';
+                        reqLength.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos 16 caracteres';
+                    } else {
+                        reqLength.style.color = '#dc2626';
+                        reqLength.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos 16 caracteres';
+                    }
+                }
 
-        // Mayúscula
-        if (/[A-Z]/.test(val)) {
-            reqUppercase.style.color = '#22c55e';
-            reqUppercase.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos una letra mayúscula';
-        } else {
-            reqUppercase.style.color = '#dc2626';
-            reqUppercase.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos una letra mayúscula';
-        }
+                if (reqUppercase) {
+                    if (/[A-Z]/.test(val)) {
+                        reqUppercase.style.color = '#22c55e';
+                        reqUppercase.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos una letra mayúscula';
+                    } else {
+                        reqUppercase.style.color = '#dc2626';
+                        reqUppercase.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos una letra mayúscula';
+                    }
+                }
 
-        // Minúscula
-        if (/[a-z]/.test(val)) {
-            reqLowercase.style.color = '#22c55e';
-            reqLowercase.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos una letra minúscula';
-        } else {
-            reqLowercase.style.color = '#dc2626';
-            reqLowercase.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos una letra minúscula';
-        }
+                if (reqLowercase) {
+                    if (/[a-z]/.test(val)) {
+                        reqLowercase.style.color = '#22c55e';
+                        reqLowercase.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos una letra minúscula';
+                    } else {
+                        reqLowercase.style.color = '#dc2626';
+                        reqLowercase.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos una letra minúscula';
+                    }
+                }
 
-        // Número
-        if (/[0-9]/.test(val)) {
-            reqNumber.style.color = '#22c55e';
-            reqNumber.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos un número';
-        } else {
-            reqNumber.style.color = '#dc2626';
-            reqNumber.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos un número';
-        }
+                if (reqNumber) {
+                    if (/[0-9]/.test(val)) {
+                        reqNumber.style.color = '#22c55e';
+                        reqNumber.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos un número';
+                    } else {
+                        reqNumber.style.color = '#dc2626';
+                        reqNumber.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos un número';
+                    }
+                }
 
-        // Carácter especial
-        if (/[!@#$%^&*(),.?":{}|<>]/.test(val)) {
-            reqSpecial.style.color = '#22c55e';
-            reqSpecial.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos un carácter especial (!@#$%^&*(),.?":{}|<>)';
-        } else {
-            reqSpecial.style.color = '#dc2626';
-            reqSpecial.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos un carácter especial (!@#$%^&*(),.?":{}|<>)';
-        }
-    }
+                if (reqSpecial) {
+                    if (/[!@#$%^&*(),.?":{}|<>]/.test(val)) {
+                        reqSpecial.style.color = '#22c55e';
+                        reqSpecial.innerHTML = '<i class="fa-solid fa-check-circle" style="font-size: 0.8rem;"></i> Al menos un carácter especial (!@#$%^&*(),.?":{}|<>)';
+                    } else {
+                        reqSpecial.style.color = '#dc2626';
+                        reqSpecial.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> Al menos un carácter especial (!@#$%^&*(),.?":{}|<>)';
+                    }
+                }
+            }
 
-    password.addEventListener('input', updateRequirements);
+            if (password) {
+                password.addEventListener('input', updateRequirements);
+            }
 
-    // Función para alternar visibilidad de contraseña (Ojito)
-    function setupPasswordToggle(toggleBtnId, inputId, iconId) {
-        const btn = document.getElementById(toggleBtnId);
-        const input = document.getElementById(inputId);
-        const icon = document.getElementById(iconId);
+            // 👇 Función para alternar visibilidad de contraseña (Ojito)
+            function setupPasswordToggle(toggleBtnId, inputId, iconId) {
+                const btn = document.getElementById(toggleBtnId);
+                const input = document.getElementById(inputId);
+                const icon = document.getElementById(iconId);
 
-        if (btn && input && icon) {
-            btn.addEventListener('click', function() {
-                const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
-                input.setAttribute('type', type);
-                
-                // Cambiar ícono de ojo abierto a ojo tachado
-                icon.classList.toggle('fa-eye');
-                icon.classList.toggle('fa-eye-slash');
-            });
-        }
-    }
+                if (btn && input && icon) {
+                    btn.addEventListener('click', function() {
+                        const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+                        input.setAttribute('type', type);
+                        
+                        // Cambiar ícono de ojo abierto a ojo tachado
+                        icon.classList.toggle('fa-eye');
+                        icon.classList.toggle('fa-eye-slash');
+                    });
+                }
+            }
 
-    // Inicializar los botones de mostrar/ocultar
-    setupPasswordToggle('togglePassword', 'password', 'eyeIconPassword');
-    setupPasswordToggle('toggleConfirm', 'confirm_password', 'eyeIconConfirm');
+            // 🚀 AQUÍ ESTABA EL DETALLE: Faltaba llamar a la función para que los botones funcionen
+            setupPasswordToggle('togglePassword', 'password', 'eyeIconPassword');
+            setupPasswordToggle('toggleConfirm', 'confirm_password', 'eyeIconConfirm');
 
-    // Validar que las contraseñas coincidan antes de enviar
-    document.getElementById('registroForm').addEventListener('submit', function(e) {
-        if (password.value !== confirmPassword.value) {
-            e.preventDefault();
-            alert('⚠️ Las contraseñas no coinciden. Por favor, verifícalas.');
-            return false;
-        }
-    });
-});
+            // Validar que las contraseñas coincidan antes de enviar
+            const registroForm = document.getElementById('registroForm');
+            if (registroForm && password && confirmPassword) {
+                registroForm.addEventListener('submit', function(e) {
+                    if (password.value !== confirmPassword.value) {
+                        e.preventDefault();
+                        alert('⚠️ Las contraseñas no coinciden. Por favor, verifícalas.');
+                        return false;
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>

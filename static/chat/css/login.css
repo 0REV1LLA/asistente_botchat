@@ -249,18 +249,19 @@ h1 {
 
 .input-wrap .lock2 {
     position: absolute;
-    top: 27%;
+    top: 50%;
     left: 16px;
     transform: translateY(-50%);
     color: #8e99ad;
     font-size: 16px;
 }
+
 .input-wrap input {
     width: 100%;
     border: 1px solid #d8dee9;
     border-radius: 16px;
     background: #f9fafc;
-    padding: 15px 16px 15px 48px;
+    padding: 15px 48px 15px 48px; /* Padding derecho de 48px para que el texto no pise el botón del ojo */
     font: inherit;
     color: var(--text);
     outline: none;
@@ -273,15 +274,6 @@ h1 {
     box-shadow: 0 0 0 4px rgba(18, 183, 106, 0.14);
 }
 
-.input-wrap .lock2 {
-    position: absolute;
-    top: 50%;
-    left: 16px;
-    transform: translateY(-50%);
-    color: #8e99ad;
-    font-size: 16px;
-}
-
 .toggle-password {
     position: absolute;
     top: 50%;
@@ -292,8 +284,11 @@ h1 {
     color: #8e99ad;
     cursor: pointer;
     font-size: 16px;
-    z-index: 2;
+    z-index: 3;
     padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .toggle-password:hover {
