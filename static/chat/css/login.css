@@ -199,7 +199,8 @@ h1 {
     grid-column: 1 / -1;
 }
 
-.input-wrap.select-wrap {
+/* 1. Contenedor general para TODOS los inputs, selects y contraseñas */
+.input-wrap {
     position: relative;
     background: #f9fafc;
     border: 1px solid #d8dee9;
@@ -209,23 +210,25 @@ h1 {
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.input-wrap.select-wrap:focus-within {
+.input-wrap:focus-within {
     border-color: rgba(18, 183, 106, 0.72);
     background: #fff;
     box-shadow: 0 0 0 4px rgba(18, 183, 106, 0.14);
 }
 
+/* 2. Inputs y selects internos (sin borde ni fondo propio, heredan del contenedor) */
+.input-wrap input,
 .select-wrap select {
     width: 100%;
     border: none;
     background: transparent;
-    padding: 15px 16px 15px 48px;
+    padding: 15px 48px 15px 48px; /* Espacio simétrico a la izquierda y derecha para íconos y botones */
     font: inherit;
     color: var(--text);
     outline: none;
-    appearance: none;
 }
 
+/* 3. Estilo general de etiquetas de texto */
 .field span {
     display: inline-block;
     margin-bottom: 8px;
@@ -233,11 +236,9 @@ h1 {
     font-weight: 600;
 }
 
-.input-wrap {
-    position: relative;
-}
-
-.input-wrap i {
+/* 4. Íconos de la izquierda (Candado, cédula, etc.) */
+.input-wrap i,
+.input-wrap .lock2 {
     position: absolute;
     top: 50%;
     left: 16px;
@@ -245,35 +246,10 @@ h1 {
     color: #8e99ad;
     z-index: 2;
     pointer-events: none;
-}
-
-.input-wrap .lock2 {
-    position: absolute;
-    top: 50%;
-    left: 16px;
-    transform: translateY(-50%);
-    color: #8e99ad;
     font-size: 16px;
 }
 
-.input-wrap input {
-    width: 100%;
-    border: 1px solid #d8dee9;
-    border-radius: 16px;
-    background: #f9fafc;
-    padding: 15px 48px 15px 48px; /* Padding derecho de 48px para que el texto no pise el botón del ojo */
-    font: inherit;
-    color: var(--text);
-    outline: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.input-wrap input:focus {
-    border-color: rgba(18, 183, 106, 0.72);
-    background: #fff;
-    box-shadow: 0 0 0 4px rgba(18, 183, 106, 0.14);
-}
-
+/* 5. Botón interactivo del ojo a la derecha */
 .toggle-password {
     position: absolute;
     top: 50%;
