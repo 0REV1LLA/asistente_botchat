@@ -1,84 +1,62 @@
-function showError(message) {
-    const errorBox = document.getElementById('errorBox');
-    errorBox.textContent = message;
-    errorBox.hidden = false;
-}
-
-function hideError() {
-    const errorBox = document.getElementById('errorBox');
-    errorBox.hidden = true;
-    errorBox.textContent = '';
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('loginForm');
     const submitBtn = document.getElementById('submitBtn');
     const loadingOverlay = document.getElementById('loadingOverlay');
     const errorBox = document.getElementById('errorBox');
-
-    if (errorBox && !errorBox.hidden && errorBox.textContent.trim()) {
-        loadingOverlay.hidden = true;
-        loadingOverlay.style.display = 'none';
-    }
+    const passwordInput = document.getElementById('password');
+    const cedulaInput = document.getElementById('cedula');
+    const cedulaFeedback = document.getElementById('loginCedulaFeedback');
+    const togglePassword = document.getElementById('togglePassword');
+    const eyeIcon = document.getElementById('eyeIconPassword');
+    const blockedModal = document.getElementById('blockedModal');
     let isSubmitting = false;
 
-    form.addEventListener('submit', (event) => {
-        if (isSubmitting) {
+    if (errorBox && !errorBox.hidden && errorBox.textContent.trim() && loadingOverlay) {
+        loadingOverlay.hidden = true;
+    }
+
+    cedulaInput?.addEventListener('input', () => {
+        if (!cedulaFeedback) return;
+        const value = cedulaInput.value.trim();
+        if (!value) {
+            cedulaFeedback.textContent = '';
+            cedulaFeedback.className = 'field-feedback';
+            cedulaInput.setAttribute('aria-invalid', 'false');
             return;
         }
-
-        event.preventDefault();
-        hideError();
-
-        isSubmitting = true;
-        loadingOverlay.hidden = false;
-        loadingOverlay.style.display = 'grid';
-        submitBtn.disabled = true;
-
-        setTimeout(() => {
-            HTMLFormElement.prototype.submit.call(form);
-        }, 1800);
+        if (value === 'SuperAdminFarmaLuz') {
+            cedulaFeedback.textContent = 'Cuenta de superadministrador.';
+            cedulaFeedback.className = 'field-feedback is-valid';
+            cedulaInput.setAttribute('aria-invalid', 'false');
+            return;
+        }
+        const valid = /^\d{7,8}$/.test(value);
+        cedulaFeedback.textContent = valid
+            ? 'Cédula válida.'
+            : 'Ingresa entre 7 y 8 dígitos, solo números.';
+        cedulaFeedback.className = valid
+            ? 'field-feedback is-valid'
+            : 'field-feedback is-invalid';
+        cedulaInput.setAttribute('aria-invalid', String(!valid));
     });
 
-    const openBtn = document.getElementById('openNormativasBtn');
-    const closeBtn = document.getElementById('closeNormativasBtn');
-    const modal = document.getElementById('normativasModal');
+    togglePassword?.addEventListener('click', () => {
+        if (!passwordInput || !eyeIcon) return;
+        passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password';
+        eyeIcon.classList.toggle('fa-eye');
+        eyeIcon.classList.toggle('fa-eye-slash');
+    });
 
-    function openModal() {
-        if (modal) {
-            modal.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
-        }
-    }
+    document.querySelector('[data-dismiss-blocked]')?.addEventListener('click', () => {
+        blockedModal?.remove();
+    });
 
-    function closeModal() {
-        if (modal) {
-            modal.style.display = 'none';
-            document.body.style.overflow = '';
-        }
-    }
-
-    if (openBtn) {
-        openBtn.addEventListener('click', openModal);
-    }
-
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeModal);
-    }
-
-    // Cerrar al hacer clic fuera del modal
-    if (modal) {
-        modal.addEventListener('click', function(event) {
-            if (event.target === modal) {
-                closeModal();
-            }
-        });
-    }
-
-    // Cerrar con tecla Escape
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape' && modal && modal.style.display === 'flex') {
-            closeModal();
-        }
+    form?.addEventListener('submit', event => {
+        if (isSubmitting || !loadingOverlay || !submitBtn) return;
+        event.preventDefault();
+        isSubmitting = true;
+        loadingOverlay.hidden = false;
+        submitBtn.disabled = true;
+        window.setTimeout(() => HTMLFormElement.prototype.submit.call(form), 500);
     });
 });

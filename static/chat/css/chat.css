@@ -604,6 +604,14 @@ h1 {
     color: #fff;
 }
 
+.session-timeout-overlay {
+    z-index: 120;
+}
+
+.session-timeout-actions {
+    grid-template-columns: 1fr;
+}
+
 @keyframes bounce {
     0%, 80%, 100% { transform: translateY(0); opacity: 0.45; }
     40% { transform: translateY(-6px); opacity: 1; }

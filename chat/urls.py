@@ -8,6 +8,8 @@ urlpatterns = [
     path('registro/', views.registro_view, name='registro'),
     path('acceso/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
+    path('terminos/', views.terminos_view, name='terminos'),
+    path('sesion/renovar/', views.renew_session_view, name='renew_session'),
 
      # URLs de recuperación de contraseña
     path('password-reset/', views.password_reset_request, name='password_reset'),
@@ -21,6 +23,7 @@ urlpatterns = [
 
     # URLs del admin
     path('admin-dashboard/', views.admin_dashboard_view, name='admin_dashboard'),
+    path('admin-dashboard/cambiar-contrasena/', views.superadmin_password_change_view, name='superadmin_password_change'),
     path('bloquear/<int:cliente_id>/', views.toggle_bloqueo_cliente, name='toggle_bloqueo_cliente'),
     path('borrar-conversacion/', views.borrar_conversacion, name='borrar_conversacion'),
 ]

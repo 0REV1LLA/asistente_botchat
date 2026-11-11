@@ -70,12 +70,20 @@
                         <i class="fa-solid fa-eye"></i>
                         <span class="badge-text">Vista de monitoreo</span>
                     </div>
+                    <button type="button" class="logout-link" data-password-open>
+                        <i class="fa-solid fa-key"></i>
+                        <span>Cambiar contraseña</span>
+                    </button>
                     <a class="logout-link logout-inline js-logout-link" href="{% url 'chat:logout' %}">
                         <i class="fa-solid fa-right-from-bracket"></i>
                         <span class="logout-text">Cerrar sesión</span>
                     </a>
                 </div>
             </header>
+
+            {% for message in messages %}
+            <div class="dashboard-notice {% if message.tags == 'success' %}success{% else %}error{% endif %}" role="status">{{ message }}</div>
+            {% endfor %}
 
             <button type="button" class="scroll-bottom-btn" id="scrollToBottomBtn" aria-label="Bajar al final del historial">
                 <i class="fa-solid fa-arrow-down"></i>
@@ -146,7 +154,46 @@
         </div>
     </div>
 
+    <div class="confirm-overlay password-change-overlay" id="passwordChangeOverlay"
+        {% if not password_form.errors %}hidden aria-hidden="true"{% else %}aria-hidden="false"{% endif %}>
+        <section class="confirm-dialog password-change-dialog" role="dialog" aria-modal="true" aria-labelledby="passwordChangeTitle">
+            <button type="button" class="password-modal-close" data-password-close aria-label="Cerrar">×</button>
+            <div class="confirm-icon"><i class="fa-solid fa-key"></i></div>
+            <h2 id="passwordChangeTitle">Cambiar contraseña</h2>
+            <form method="post" action="{% url 'chat:superadmin_password_change' %}" class="password-change-form">
+                {% csrf_token %}
+                {% for field in password_form %}
+                <label class="field">
+                    <span>{{ field.label }}</span>
+                    {{ field }}
+                    {% for error in field.errors %}<small class="field-error" role="alert">{{ error }}</small>{% endfor %}
+                </label>
+                {% endfor %}
+                <div class="confirm-actions">
+                    <button type="button" class="confirm-button cancel" data-password-close>Cancelar</button>
+                    <button type="submit" class="confirm-button accept">Guardar contraseña</button>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    <div class="confirm-overlay session-timeout-overlay" id="sessionTimeoutOverlay" hidden aria-hidden="true">
+        <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="sessionTimeoutTitle" aria-describedby="sessionTimeoutMessage">
+            <div class="confirm-icon"><i class="fa-solid fa-clock"></i></div>
+            <h2 id="sessionTimeoutTitle">¿Deseas mantener tu sesión activa?</h2>
+            <p id="sessionTimeoutMessage">Tu sesión se cerrará por inactividad en <strong id="sessionCountdown">30</strong> segundos.</p>
+            <div class="confirm-actions session-timeout-actions">
+                <button type="button" class="confirm-button accept" id="keepSessionActive">Mantener sesión activa</button>
+            </div>
+        </div>
+    </div>
+
+    <div hidden>{% csrf_token %}</div>
     {{ conversations|json_script:"conversations-data" }}
     <script src="{% static 'chat/js/admin_dashboard.js' %}" defer></script>
+    <script src="{% static 'chat/js/session_timeout.js' %}" defer data-session-timeout
+        data-logout-url="{% url 'chat:logout' %}"
+        data-renew-url="{% url 'chat:renew_session' %}"
+        data-last-activity="{{ last_activity }}"></script>
 </body>
 </html>

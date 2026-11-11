@@ -40,7 +40,6 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
-# Vercel expone estos nombres automáticamente en cada deployment.
 for vercel_host in (
     os.getenv('VERCEL_URL'),
     os.getenv('VERCEL_PROJECT_PRODUCTION_URL'),
@@ -68,6 +67,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'captcha',
     'chat',          
     'simple_chatbot',
 ]
@@ -94,6 +94,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'chat.middleware.CustomSessionTimeoutMiddleware',
+    'csp.middleware.CSPMiddleware',
 ]
 
 ROOT_URLCONF = 'asistente_virtual.urls'
@@ -147,7 +149,6 @@ DATABASES = {
     )
 }
 
-# ✅ CONFIGURACIÓN CORRECTA (Fuera de DATABASES, como variable global)
 DISABLE_SERVER_SIDE_CURSORS = True
 
 MIGRATION_MODULES = {}
@@ -160,7 +161,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# Email. En producción se configura desde las variables de Vercel.
+# Email. En producción se configura desde las variables de Vercel
 SITE_NAME = os.getenv('SITE_NAME', 'Asistente Farmaluz')
 EMAIL_BACKEND = os.getenv(
     'EMAIL_BACKEND',
@@ -215,3 +216,33 @@ if not DEBUG:
 
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+CONTENT_SECURITY_POLICY = {
+    'DIRECTIVES': {
+        'default-src': ["'self'"],
+        'base-uri': ["'self'"],
+        'object-src': ["'none'"],
+        'frame-ancestors': ["'self'"],
+        'form-action': ["'self'"],
+        'script-src': ["'self'"],
+        'style-src': [
+            "'self'",
+            "'unsafe-inline'",
+            'https://fonts.googleapis.com',
+            'https://cdnjs.cloudflare.com',
+        ],
+        'font-src': [
+            "'self'",
+            'data:',
+            'https://fonts.gstatic.com',
+            'https://cdnjs.cloudflare.com',
+        ],
+        'img-src': ["'self'", 'data:'],
+        'connect-src': [
+            "'self'",
+            'https://fonts.googleapis.com',
+            'https://fonts.gstatic.com',
+            'https://cdnjs.cloudflare.com',
+        ],
+    },
+}

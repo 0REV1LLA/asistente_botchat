@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
@@ -79,7 +78,7 @@
                         <div class="composer-wrap {% if cliente_bloqueado %}single-control{% endif %}">
                             <input type="text" id="messageInput" placeholder="{% if cliente_bloqueado %}Usuario bloqueado{% else %}Escribe tu mensaje...{% endif %}" autocomplete="off" {% if cliente_bloqueado %}disabled aria-disabled="true"{% endif %}>
                             {% if not cliente_bloqueado %}
-                            <button type="button" id="sendMessageBtn" onclick="sendMessage()">Enviar</button>
+                            <button type="button" id="sendMessageBtn">Enviar</button>
                             {% endif %}
                         </div>
                     </div>
@@ -100,7 +99,23 @@
         </div>
     </div>
 
+    <div class="confirm-overlay session-timeout-overlay" id="sessionTimeoutOverlay" hidden aria-hidden="true">
+        <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="sessionTimeoutTitle" aria-describedby="sessionTimeoutMessage">
+            <div class="confirm-icon"><i class="fa-solid fa-clock"></i></div>
+            <h2 id="sessionTimeoutTitle">¿Deseas mantener tu sesión activa?</h2>
+            <p id="sessionTimeoutMessage">Tu sesión se cerrará por inactividad en <strong id="sessionCountdown">30</strong> segundos.</p>
+            <div class="confirm-actions session-timeout-actions">
+                <button type="button" class="confirm-button accept" id="keepSessionActive">Mantener sesión activa</button>
+            </div>
+        </div>
+    </div>
+
+    <div hidden>{% csrf_token %}</div>
     {{ chat_history|json_script:"chat-history-data" }}
     <script src="{% static 'chat/js/chat.js' %}?v=2"></script>
+    <script src="{% static 'chat/js/session_timeout.js' %}" defer data-session-timeout
+        data-logout-url="{% url 'chat:logout' %}"
+        data-renew-url="{% url 'chat:renew_session' %}"
+        data-last-activity="{{ last_activity }}"></script>
 </body>
 </html>

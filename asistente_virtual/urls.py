@@ -21,6 +21,7 @@ from django.shortcuts import redirect
 
 urlpatterns = [
     path('secret-admin/', admin.site.urls), #url predeterminada cambiada 
+    path('captcha/', include('captcha.urls')),
     path('chat/', include(('chat.urls', 'chat'), namespace='chat')),  # Login, chat y panel admin
     path('api/chatbot/', SimpleChatbot.as_view()),  # API del chatbot
     path('', lambda request: redirect('/chat/acceso/', permanent=False)),

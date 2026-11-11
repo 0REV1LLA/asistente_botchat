@@ -21,11 +21,19 @@ from django.templatetags.static import static
 
 import re
 from django.contrib.auth.hashers import make_password, check_password
+from django.contrib import messages
+from django.views.decorators.http import require_POST
 
+from .constants import SUPERADMIN_CEDULA
+from .forms import (
+    LoginForm,
+    PasswordResetRequestForm,
+    RegistrationForm,
+    SuperadminPasswordChangeForm,
+)
 from .models import Almacen, ChatMessage, Clientes, Productos, ChatsOcultos
 
 #Configuraciones generales
-SUPERADMIN_CEDULA = 'SuperAdminFarmaLuz'
 BOT_NAME = 'Lucy'
 BOT_EMOJI = '💁‍♀️'
 PASSWORD_RESET_SESSION_KEY = 'password_reset_request'
@@ -505,22 +513,25 @@ def login_view(request):
         if request.session.get('user_type') == 'client':
             return redirect('chat:bot_chat')
         return render(request, 'login.html', {
+            'login_form': LoginForm(),
             'prefill_cedula': request.session.pop('login_prefill_cedula', ''),
             'registration_success': request.GET.get('registered') == '1',
+            'session_expired': request.GET.get('expired') == '1',
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
         })
 
-    cedula = request.POST.get('cedula', '').strip()
-    password = request.POST.get('password', '').strip()
-
-    if not cedula or not password:
+    form = LoginForm(request.POST)
+    if not form.is_valid():
         return render(request, 'login.html', {
-            'error_message': 'Debes ingresar tu cédula y contraseña.',
-            'prefill_cedula': cedula,
+            'login_form': form,
+            'prefill_cedula': request.POST.get('cedula', '').strip(),
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
         }, status=400)
+
+    cedula = form.cleaned_data['cedula']
+    password = form.cleaned_data['password']
 
     if cedula == SUPERADMIN_CEDULA:
         cliente = _ensure_superadmin_exists()
@@ -530,6 +541,7 @@ def login_view(request):
     if not cliente:
         return render(request, 'login.html', {
             'error_message': 'Cédula incorrecta o no registrada.',
+            'login_form': LoginForm(),
             'prefill_cedula': cedula,
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
@@ -539,6 +551,7 @@ def login_view(request):
     if not cliente.password:
         return render(request, 'login.html', {
             'error_message': 'Debes restablecer tu contraseña usando "¿Olvidaste tu contraseña?".',
+            'login_form': LoginForm(),
             'prefill_cedula': cedula,
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
@@ -548,6 +561,7 @@ def login_view(request):
     if cliente.bloqueado:
         return render(request, 'login.html', {
             'error_message': 'Usuario bloqueado por incumplir las normas de esta página web.',
+            'login_form': LoginForm(),
             'prefill_cedula': cedula,
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
@@ -557,6 +571,7 @@ def login_view(request):
     if not check_password(password, cliente.password):
         return render(request, 'login.html', {
             'error_message': 'Contraseña incorrecta.',
+            'login_form': LoginForm(),
             'prefill_cedula': cedula,
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
@@ -567,6 +582,7 @@ def login_view(request):
 
     request.session.flush()
     request.session['user_type'] = 'admin' if cliente.cedula == SUPERADMIN_CEDULA else 'client'
+    request.session['last_activity'] = timezone.now().timestamp()
     request.session['cliente_id'] = cliente.cliente_id
     request.session['cliente_cedula'] = cliente.cedula
     request.session['cliente_nombre'] = _client_display_name(cliente)
@@ -581,159 +597,46 @@ def login_view(request):
     return redirect(redirect_url)
 
 
-# ============================================
-# FUNCIÓN MODIFICADA - CON VALIDACIÓN DE LONGITUD DE CÉDULA Y PATOLOGÍA
-# ============================================
 def registro_view(request):
     if request.method == 'GET':
         if _is_admin_session(request):
             return redirect('chat:admin_dashboard')
         if request.session.get('user_type') == 'client':
             return redirect('chat:bot_chat')
-
         return render(request, 'registro.html', {
+            'registration_form': RegistrationForm(),
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
         })
 
-    nombre = request.POST.get('nombre', '').strip()
-    apellido = request.POST.get('apellido', '').strip()
-    cedula = request.POST.get('cedula', '').strip()
-    correo = request.POST.get('correo', '').strip()
-    patologia = request.POST.get('patologia', '').strip()  # 👈 PATOLOGÍA AGREGADA
-    genero = request.POST.get('genero', '').strip().lower()
-    direccion = request.POST.get('direccion', '').strip()
-    n_telefono = request.POST.get('n_telefono', '').strip()
-    fecha_nacimiento = request.POST.get('fecha_nacimiento', '').strip()
-    password = request.POST.get('password', '').strip()
-    confirm_password = request.POST.get('confirm_password', '').strip()
-
-    required_fields = {
-        'nombre': nombre,
-        'apellido': apellido,
-        'cedula': cedula,
-        'correo': correo,
-        'patologia': patologia,  # 👈 PATOLOGÍA AGREGADA
-        'genero': genero,
-        'direccion': direccion,
-        'n_telefono': n_telefono,
-        'fecha_nacimiento': fecha_nacimiento,
-        'password': password,
-        'confirm_password': confirm_password,
-    }
-
-    if any(not value for value in required_fields.values()):
+    form = RegistrationForm(request.POST)
+    if not form.is_valid():
+        form_values = request.POST.dict()
+        form_values.pop('password', None)
+        form_values.pop('confirm_password', None)
         return render(request, 'registro.html', {
-            'error_message': 'Completa todos los datos para continuar con el registro.',
-            'form_values': required_fields,
+            'registration_form': form,
+            'form_values': form_values,
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
         }, status=400)
 
-    # Validar longitud de cédula
-    if len(cedula) < 7 or len(cedula) > 8:
-        return render(request, 'registro.html', {
-            'error_message': '⚠️ La cédula debe tener entre 7 y 8 caracteres.',
-            'form_values': required_fields,
-            'assistant_name': BOT_NAME,
-            'assistant_emoji': BOT_EMOJI,
-        }, status=400)
-
-    # Validar contraseña
-    if password != confirm_password:
-        return render(request, 'registro.html', {
-            'error_message': '⚠️ Las contraseñas no coinciden.',
-            'form_values': required_fields,
-            'assistant_name': BOT_NAME,
-            'assistant_emoji': BOT_EMOJI,
-        }, status=400)
-
-    # Validar requisitos de contraseña
-    if len(password) < 16:
-        return render(request, 'registro.html', {
-            'error_message': '⚠️ La contraseña debe tener al menos 16 caracteres.',
-            'form_values': required_fields,
-            'assistant_name': BOT_NAME,
-            'assistant_emoji': BOT_EMOJI,
-        }, status=400)
-    if not re.search(r'[A-Z]', password):
-        return render(request, 'registro.html', {
-            'error_message': '⚠️ La contraseña debe contener al menos una letra mayúscula.',
-            'form_values': required_fields,
-            'assistant_name': BOT_NAME,
-            'assistant_emoji': BOT_EMOJI,
-        }, status=400)
-    if not re.search(r'[a-z]', password):
-        return render(request, 'registro.html', {
-            'error_message': '⚠️ La contraseña debe contener al menos una letra minúscula.',
-            'form_values': required_fields,
-            'assistant_name': BOT_NAME,
-            'assistant_emoji': BOT_EMOJI,
-        }, status=400)
-    if not re.search(r'[0-9]', password):
-        return render(request, 'registro.html', {
-            'error_message': '⚠️ La contraseña debe contener al menos un número.',
-            'form_values': required_fields,
-            'assistant_name': BOT_NAME,
-            'assistant_emoji': BOT_EMOJI,
-        }, status=400)
-    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-        return render(request, 'registro.html', {
-            'error_message': '⚠️ La contraseña debe contener al menos un carácter especial (!@#$%^&*(),.?":{}|<>)',
-            'form_values': required_fields,
-            'assistant_name': BOT_NAME,
-            'assistant_emoji': BOT_EMOJI,
-        }, status=400)
-
-    if genero not in {'hombre', 'mujer'}:
-        return render(request, 'registro.html', {
-            'error_message': 'Selecciona un género válido.',
-            'form_values': required_fields,
-            'assistant_name': BOT_NAME,
-            'assistant_emoji': BOT_EMOJI,
-        }, status=400)
-
-    if cedula == SUPERADMIN_CEDULA:
-        return render(request, 'registro.html', {
-            'error_message': 'Coloque un número de cédula válido.',
-            'form_values': required_fields,
-            'assistant_name': BOT_NAME,
-            'assistant_emoji': BOT_EMOJI,
-        }, status=400)
-
-    if Clientes.objects.filter(cedula=cedula).exists():
-        return render(request, 'registro.html', {
-            'error_message': '⚠️ Esta cédula ya está registrada en el sistema.',
-            'form_values': required_fields,
-            'assistant_name': BOT_NAME,
-            'assistant_emoji': BOT_EMOJI,
-        }, status=400)
-
-    if Clientes.objects.filter(correo=correo).exists():
-        return render(request, 'registro.html', {
-            'error_message': '⚠️ Este correo electrónico ya está registrado en el sistema.',
-            'form_values': required_fields,
-            'assistant_name': BOT_NAME,
-            'assistant_emoji': BOT_EMOJI,
-        }, status=400)
-
-    # Crear cliente con contraseña hasheada y patología
+    data = form.cleaned_data
     cliente = Clientes.objects.create(
-        cedula=cedula,
-        correo=correo,
-        nombre=nombre,
-        apellido=apellido,
-        patologia=patologia,  # 👈 PATOLOGÍA AGREGADA
-        genero=genero,
-        direccion=direccion,
-        n_telefono=n_telefono,
-        fecha_nacimiento=fecha_nacimiento or None,
-        password=make_password(password),
+        cedula=data['cedula'],
+        correo=data['correo'],
+        nombre=data['nombre'],
+        apellido=data['apellido'],
+        patologia=data['patologia'],
+        genero=data['genero'],
+        direccion=data['direccion'],
+        n_telefono=data['n_telefono'],
+        fecha_nacimiento=data['fecha_nacimiento'],
+        password=make_password(data['password']),
     )
 
     request.session['login_prefill_cedula'] = cliente.cedula
     request.session['registration_name'] = _client_display_name(cliente)
-
     return redirect(f"{reverse('chat:login')}?registered=1")
 
 
@@ -754,6 +657,7 @@ def chat_view(request):
         'cliente_display_name': _conversation_label(cliente) if cliente else cliente_nombre,
         'assistant_name': BOT_NAME,
         'assistant_emoji': BOT_EMOJI,
+        'last_activity': request.session.get('last_activity', timezone.now().timestamp()),
         'quick_commands': RAPID_COMMANDS,
         'chat_history': _get_chat_history(conversation_key),
         'cliente_bloqueado': bool(cliente and cliente.bloqueado),
@@ -767,9 +671,19 @@ def admin_dashboard_view(request):
     if not _is_admin_session(request):
         return redirect('chat:login')
 
+    return _render_admin_dashboard(request)
+
+
+def _render_admin_dashboard(request, password_form=None, status=200):
+    cliente = Clientes.objects.filter(cliente_id=request.session.get('cliente_id')).first()
+    if cliente is None:
+        request.session.flush()
+        return redirect('chat:login')
     conversations = _build_conversations(request)
     active_conversation = conversations[0] if conversations else None
 
+    if password_form is None:
+        password_form = SuperadminPasswordChangeForm(cliente=cliente)
     return render(request, 'admin_dashboard.html', {
         'conversations': conversations,
         'active_conversation': active_conversation,
@@ -778,12 +692,51 @@ def admin_dashboard_view(request):
         'brand_logo_url': static('chat/img/farmaluz-logo.png'),
         'assistant_name': BOT_NAME,
         'assistant_emoji': BOT_EMOJI,
-    })
+        'last_activity': request.session.get('last_activity', timezone.now().timestamp()),
+        'password_form': password_form,
+    }, status=status)
+
+
+def superadmin_password_change_view(request):
+    if not _is_admin_session(request):
+        return redirect('chat:login')
+    if request.method != 'POST':
+        return redirect('chat:admin_dashboard')
+
+    cliente = Clientes.objects.filter(cliente_id=request.session.get('cliente_id')).first()
+    if cliente is None:
+        request.session.flush()
+        return redirect('chat:login')
+
+    form = SuperadminPasswordChangeForm(request.POST, cliente=cliente)
+    if not form.is_valid():
+        return _render_admin_dashboard(request, password_form=form, status=400)
+
+    cliente.password = make_password(form.cleaned_data['new_password'])
+    cliente.save(update_fields=['password'])
+    messages.success(request, 'La contraseña del superadministrador se actualizó correctamente.')
+    return redirect('chat:admin_dashboard')
+
+
+@require_POST
+def renew_session_view(request):
+    if request.session.get('user_type') not in {'client', 'admin'}:
+        return JsonResponse({'error': 'La sesión ya no está activa.'}, status=401)
+
+    request.session['last_activity'] = timezone.now().timestamp()
+    return JsonResponse({'ok': True})
+
+
+def terminos_view(request):
+    return render(request, 'terminos.html', _auth_brand_context())
 
 
 def logout_view(request):
     request.session.flush()
-    return redirect('chat:login')
+    login_url = reverse('chat:login')
+    if request.GET.get('expired') == '1':
+        return redirect(f'{login_url}?expired=1')
+    return redirect(login_url)
 
 
 def toggle_bloqueo_cliente(request, cliente_id):
@@ -878,56 +831,50 @@ def enviar_mensaje(request):
 # RECUPERACIÓN DE CONTRASEÑA
 # ============================================
 def password_reset_request(request):
-    """Vista para solicitar recuperación de Contraseña"""
+    """Send a password reset email after validating the email and CAPTCHA."""
+    form = PasswordResetRequestForm(request.POST or None)
     if request.method == 'POST':
-        correo = request.POST.get('correo', '').strip()
-        
-        if not correo:
-            return render(request, 'chat/password_reset_form.html', 
-                         {'error_message': 'Debes ingresar un correo electrónico.'})
-        
+        if not form.is_valid():
+            return render(request, 'chat/password_reset_form.html', {
+                **_password_reset_form_context(),
+                'form': form,
+            }, status=400)
+
         try:
-            cliente = Clientes.objects.get(correo=correo)
-            
-            # Generar token
+            cliente = Clientes.objects.get(correo__iexact=form.cleaned_data['correo'])
             token = secrets.token_urlsafe(32)
             uidb64 = urlsafe_base64_encode(force_bytes(cliente.cliente_id))
-            
-            print(f"📧 Recuperación para: {cliente.correo}")
-            print(f"🔑 UIDB64: {uidb64}")
-            print(f"🔑 Token: {token}")
-            
-            # Construir URL de confirmación con firma
             signed_token = _build_reset_signature(uidb64, token)
-            print(f"🔐 Signed Token: {signed_token[:50]}...")
             email_token = urlsafe_base64_encode(force_bytes(signed_token))
-            
             reset_path = reverse('chat:password_reset_confirm', kwargs={
-                'signed_token': email_token
+                'signed_token': email_token,
             })
             public_url = settings.PUBLIC_URL
             if public_url and any(character in public_url for character in '[]()'):
-                print('⚠️ PUBLIC_URL contiene formato inválido; se usará el dominio de la solicitud.')
+                print('PUBLIC_URL contiene formato inválido; se usará el dominio de la solicitud.')
                 public_url = ''
             reset_url = f'{public_url}{reset_path}' if public_url else request.build_absolute_uri(reset_path)
-            
-            print(f"🔗 URL: {reset_url}")
-            
-            # Enviar email
             _send_reset_email(cliente, reset_url)
-            
             return redirect('chat:password_reset_done')
-            
         except Clientes.DoesNotExist:
-            return render(request, 'chat/password_reset_form.html', 
-                         {'error_message': 'No existe un cliente con este correo electrónico.'})
-        except Exception as e:
-            print(f"❌ Error en password_reset_request: {e}")
+            return render(request, 'chat/password_reset_form.html', {
+                **_password_reset_form_context(),
+                'form': PasswordResetRequestForm(),
+                'error_message': 'No existe un cliente con este correo electrónico.',
+            }, status=400)
+        except Exception as error:
+            print(f'Error en password_reset_request: {error}')
             traceback.print_exc()
-            return render(request, 'chat/password_reset_form.html',
-                         {'error_message': 'No fue posible enviar el correo. Intenta nuevamente más tarde.'})
-    
-    return render(request, 'chat/password_reset_form.html')
+            return render(request, 'chat/password_reset_form.html', {
+                **_password_reset_form_context(),
+                'form': PasswordResetRequestForm(),
+                'error_message': 'No fue posible enviar el correo. Intenta nuevamente más tarde.',
+            }, status=500)
+
+    return render(request, 'chat/password_reset_form.html', {
+        **_password_reset_form_context(),
+        'form': form,
+    })
 
 
 def password_reset_done(request):

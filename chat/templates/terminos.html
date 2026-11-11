@@ -1,0 +1,49 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmaLuz | Privacidad y términos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'chat/css/login.css' %}">
+</head>
+<body>
+    <main class="page-shell">
+        <article class="login-card legal-card">
+            <p class="eyebrow">FarmaLuz</p>
+            <h1>Privacidad y condiciones de uso</h1>
+            <p class="subtitle">Información sobre el uso de tus datos y del sistema FarmaLuz.</p>
+
+            <section class="legal-section">
+                <h2>Política de Privacidad</h2>
+                <h3>Datos que recopilamos</h3>
+                <p>Al crear una cuenta podemos solicitar tu nombre, cédula, correo electrónico, teléfono, fecha de nacimiento y los datos que decidas proporcionar en tu perfil o conversación, incluida información de salud.</p>
+                <h3>Uso de la información</h3>
+                <p>Usamos estos datos para crear y proteger tu cuenta, ofrecer las funciones del asistente, atender solicitudes relacionadas con el servicio y mantener la seguridad del sistema. No solicitamos datos de pago en el chat ni vendemos tus datos personales.</p>
+                <p>El sitio puede cargar recursos de proveedores externos, como Google Fonts y Font Awesome. La solicitud de esos recursos puede compartir datos técnicos de conexión (por ejemplo, tu dirección IP) con dichos proveedores, según sus propias políticas.</p>
+                <h3>Acceso, protección y conservación</h3>
+                <p>El acceso a los datos se limita a su operación y administración autorizada. Aplicamos controles técnicos y organizativos razonables; ningún servicio en Internet puede garantizar seguridad absoluta. Conservamos la información mientras sea necesaria para prestar el servicio y atender obligaciones aplicables.</p>
+                <h3>Tus opciones</h3>
+                <p>Procura mantener actualizados tus datos y no compartas información de acceso. Para consultar, corregir o solicitar la eliminación de tus datos, utiliza los canales de contacto oficiales de FarmaLuz.</p>
+            </section>
+
+            <section class="legal-section">
+                <h2>Términos y Condiciones</h2>
+                <h3>Uso de la cuenta</h3>
+                <p>Debes proporcionar información veraz, mantener la confidencialidad de tus credenciales y utilizar el sistema de forma legal y respetuosa. No está permitido suplantar identidades, interferir con el servicio, enviar spam ni intentar acceder a cuentas o datos ajenos.</p>
+                <h3>Información de salud</h3>
+                <p>El asistente brinda información general y apoyo para consultar el catálogo. No diagnostica, prescribe ni sustituye la evaluación de un médico o farmacéutico. Confirma con un profesional cualquier decisión sobre medicamentos o tratamientos.</p>
+                <h3>Disponibilidad y cambios</h3>
+                <p>El servicio se ofrece según su disponibilidad y algunas funciones pueden cambiar o interrumpirse para mantenimiento o seguridad. Podemos actualizar estas condiciones; publicaremos aquí la versión vigente.</p>
+                <h3>Aceptación</h3>
+                <p>Al marcar la casilla de aceptación durante el registro, confirmas que has leído y aceptas esta política y estos términos.</p>
+            </section>
+
+            <a class="secondary-link" href="{% url 'chat:registro' %}">Volver al registro</a>
+        </article>
+    </main>
+</body>
+</html>

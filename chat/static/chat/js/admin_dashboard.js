@@ -321,6 +321,23 @@ if (logoutLink) {
     });
 }
 
+const passwordOverlay = document.getElementById('passwordChangeOverlay');
+if (passwordOverlay && !passwordOverlay.hidden) {
+    document.body.classList.add('confirm-open');
+}
+document.querySelector('[data-password-open]')?.addEventListener('click', () => {
+    passwordOverlay.hidden = false;
+    passwordOverlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('confirm-open');
+});
+document.querySelectorAll('[data-password-close]').forEach((button) => {
+    button.addEventListener('click', () => {
+        passwordOverlay.hidden = true;
+        passwordOverlay.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('confirm-open');
+    });
+});
+
 if (!conversations.length) {
     conversationList.innerHTML = '';
     emptyState.hidden = false;

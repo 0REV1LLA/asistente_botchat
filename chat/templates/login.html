@@ -27,15 +27,16 @@
             </div>
 
             {% if registration_success %}
-            <div class="success-box" role="status">
-                Tu registro fue guardado. Ahora ingresa tu cédula para entrar al sistema.
-            </div>
+            <div class="success-box" role="status">Tu registro fue guardado. Ahora ingresa tu cédula para entrar al sistema.</div>
+            {% endif %}
+            {% if session_expired %}
+            <div class="error-box" role="alert">Tu sesión se cerró por inactividad. Inicia sesión nuevamente.</div>
             {% endif %}
 
             <a class="secondary-link secondary-link-top" href="{% url 'chat:registro' %}">Crear registro</a>
-            <a class="secondary-link secondary-link-top" href="{% url 'chat:password_reset' %}">Recuperacion de Contraseña</a>
+            <a class="secondary-link secondary-link-top" href="{% url 'chat:password_reset' %}">Recuperación de contraseña</a>
 
-            <form id="loginForm" class="login-form" method="post" action="{% url 'chat:login' %}" data-login-url="{% url 'chat:login' %}">
+            <form id="loginForm" class="login-form" method="post" action="{% url 'chat:login' %}">
                 {% csrf_token %}
                 <label class="field">
                     <span>Cédula</span>
@@ -43,93 +44,50 @@
                         <i class="fa-solid fa-id-card"></i>
                         <input type="text" name="cedula" id="cedula" placeholder="Ej: 12345678" autocomplete="username" value="{{ prefill_cedula|default:'' }}" required>
                     </div>
+                    <small class="field-feedback" id="loginCedulaFeedback" aria-live="polite"></small>
+                    {% for error in login_form.cedula.errors %}
+                    <small class="field-error" role="alert">{{ error }}</small>
+                    {% endfor %}
                 </label>
-                
+
                 <label class="field">
                     <span>Contraseña</span>
                     <div class="input-wrap">
                         <i class="fa-solid fa-lock lock2"></i>
-                        <input type="password" name="password" id="password" placeholder="Ingresa tu contraseña" required style="padding-right: 48px;">
-                        <button type="button" class="toggle-password" id="togglePassword">
+                        <input type="password" name="password" id="password" placeholder="Ingresa tu contraseña" required>
+                        <button type="button" class="toggle-password" id="togglePassword" aria-label="Mostrar u ocultar contraseña">
                             <i class="fa-solid fa-eye" id="eyeIconPassword"></i>
                         </button>
                     </div>
+                    {% for error in login_form.password.errors %}
+                    <small class="field-error" role="alert">{{ error }}</small>
+                    {% endfor %}
                 </label>
 
-                <p class="hint">Si todavía no te registraste, primero crea tu perfil para que podamos reconocer tus datos con seguridad.</p>
+                <label class="field captcha-field">
+                    <span>Verificación de seguridad</span>
+                    {{ login_form.captcha }}
+                    {% for error in login_form.captcha.errors %}
+                    <small class="field-error" role="alert">{{ error }}</small>
+                    {% endfor %}
+                </label>
 
+                {% if error_message %}
+                <div class="error-box" id="errorBox" role="alert">{{ error_message }}</div>
+                {% else %}
+                <div class="error-box" id="errorBox" hidden role="alert"></div>
+                {% endif %}
+
+                <p class="hint">Si todavía no te registraste, primero crea tu perfil para que podamos reconocer tus datos con seguridad.</p>
                 <button type="submit" class="submit-btn" id="submitBtn">
                     <span>Ingresar</span>
                     <i class="fa-solid fa-arrow-right"></i>
                 </button>
-
-                <div style="text-align: center; margin-top: 16px;">
-                    <button type="button" class="btn-normativas" id="openNormativasBtn">
-                        <i class="fa-solid fa-book-open"></i> Lee nuestras normativas para evitar ser bloqueado
-                    </button>
-                </div>
-
-                <div class="modal-overlay" id="normativasModal" style="display: none;">
-                    <div class="modal-dialog normativas-dialog">
-                        <div class="modal-header">
-                            <div class="modal-icon">📋</div>
-                            <h2>Normativas de FarmaLuz</h2>
-                            <p class="modal-subtitle">Para garantizar una experiencia segura y respetuosa para todos</p>
-                        </div>
-                        <div class="modal-body">
-                            <ul class="normativas-list">
-                                <li>
-                                    <i class="fa-solid fa-circle-check"></i>
-                                    <div>
-                                        <strong>No hacer spam</strong>
-                                        <span>No enviar múltiples mensajes en un corto período de tiempo.</span>
-                                    </div>
-                                </li>
-                                <li>
-                                    <i class="fa-solid fa-circle-check"></i>
-                                    <div>
-                                        <strong>Lenguaje respetuoso</strong>
-                                        <span>No hacer uso de malas palabras, lenguaje ofensivo o discriminatorio.</span>
-                                    </div>
-                                </li>
-                                <li>
-                                    <i class="fa-solid fa-circle-check"></i>
-                                    <div>
-                                        <strong>Privacidad</strong>
-                                        <span>No compartir información personal de otros usuarios sin su consentimiento.</span>
-                                    </div>
-                                </li>
-                                <li>
-                                    <i class="fa-solid fa-circle-check"></i>
-                                    <div>
-                                        <strong>Identidad</strong>
-                                        <span>No realizar intentos de suplantación de identidad o phishing.</span>
-                                    </div>
-                                </li>
-                                <li>
-                                    <i class="fa-solid fa-circle-check"></i>
-                                    <div>
-                                        <strong>Actividades ilegales</strong>
-                                        <span>No utilizar el sistema para actividades ilegales o fraudulentas.</span>
-                                    </div>
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn-modal-accept" id="closeNormativasBtn">Entendido</button>
-                        </div>
-                    </div>
-                </div>
-                {% if error_message %}
-                <div class="error-box" id="errorBox">{{ error_message }}</div>
-                {% else %}
-                <div class="error-box" id="errorBox" hidden></div>
-                {% endif %}
             </form>
         </section>
     </main>
 
-    <div class="loading-overlay" id="loadingOverlay" hidden style="display: none;" aria-live="polite" aria-busy="true">
+    <div class="loading-overlay" id="loadingOverlay" hidden aria-live="polite" aria-busy="true">
         <div class="loading-card">
             <div class="spinner"></div>
             <h2>Cargando tu acceso</h2>
@@ -137,35 +95,17 @@
         </div>
     </div>
 
-    <script src="{% static 'chat/js/login.js' %}?v=2" defer></script>
-    
-    <!-- SCRIPT PARA EL BOTÓN DEL OJO EN EL LOGIN -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const toggleBtn = document.getElementById('togglePassword');
-            const passwordInput = document.getElementById('password');
-            const eyeIcon = document.getElementById('eyeIconPassword');
-
-            if (toggleBtn && passwordInput && eyeIcon) {
-                toggleBtn.addEventListener('click', function() {
-                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-                    passwordInput.setAttribute('type', type);
-                    eyeIcon.classList.toggle('fa-eye');
-                    eyeIcon.classList.toggle('fa-eye-slash');
-                });
-            }
-        });
-    </script>
-    
     {% if error_message and 'bloqueado' in error_message %}
-        <div class="modal-overlay" id="blockedModal">
-            <div class="modal-dialog">
-                <div class="modal-icon">🚫</div>
-                <h2>Usuario bloqueado</h2>
-                <p>{{ error_message }}</p>
-                <button onclick="document.getElementById('blockedModal').style.display='none'" class="btn-modal">Aceptar</button>
-            </div>
+    <div class="modal-overlay" id="blockedModal">
+        <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="blockedTitle">
+            <div class="modal-icon">🚫</div>
+            <h2 id="blockedTitle">Usuario bloqueado</h2>
+            <p>{{ error_message }}</p>
+            <button type="button" data-dismiss-blocked class="btn-modal">Aceptar</button>
         </div>
+    </div>
     {% endif %}
+
+    <script src="{% static 'chat/js/login.js' %}" defer></script>
 </body>
 </html>

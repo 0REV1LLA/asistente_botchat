@@ -1,20 +1,35 @@
 import json
 from datetime import date
 
+from captcha.models import CaptchaStore
+from django.contrib.auth.hashers import check_password, make_password
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from .models import Clientes
 
 
-class SuperadminLoginTests(TestCase):
-    def test_login_creates_superadmin_when_missing(self):
-        Clientes.objects.filter(cedula='SuperAdminFarmaLuz').delete()
+def captcha_response():
+    key = CaptchaStore.generate_key()
+    challenge = CaptchaStore.objects.get(hashkey=key)
+    return {'captcha_0': key, 'captcha_1': challenge.response}
 
-        response = self.client.post(reverse('chat:login'), {'cedula': 'SuperAdminFarmaLuz'})
+
+class SuperadminLoginTests(TestCase):
+    def test_superadmin_login_requires_password_and_captcha(self):
+        Clientes.objects.create(
+            cedula='SuperAdminFarmaLuz',
+            password=make_password('Old-SuperAdmin-Password-1'),
+        )
+
+        response = self.client.post(reverse('chat:login'), {
+            'cedula': 'SuperAdminFarmaLuz',
+            'password': 'Old-SuperAdmin-Password-1',
+            **captcha_response(),
+        })
 
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(Clientes.objects.filter(cedula='SuperAdminFarmaLuz').exists())
         self.assertRedirects(response, reverse('chat:admin_dashboard'))
 
 
@@ -25,11 +40,15 @@ class ClienteRegistrationTests(TestCase):
             'apellido': 'Pérez',
             'cedula': '12345678',
             'correo': 'ana@correo.com',
-            'patologia': 'Asma',
+            'patologia': 'diabetes',
             'genero': 'mujer',
             'direccion': 'Calle 1',
             'n_telefono': '04121234567',
             'fecha_nacimiento': '2000-01-15',
+            'password': 'StrongRegistrationPassword123!',
+            'confirm_password': 'StrongRegistrationPassword123!',
+            'accept_terms': 'on',
+            **captcha_response(),
         })
 
         self.assertEqual(response.status_code, 302)
@@ -37,6 +56,115 @@ class ClienteRegistrationTests(TestCase):
         self.assertEqual(cliente.fecha_nacimiento, date(2000, 1, 15))
         self.assertEqual(cliente.n_telefono, '04121234567')
         self.assertEqual(cliente.correo, 'ana@correo.com')
+        self.assertTrue(check_password('StrongRegistrationPassword123!', cliente.password))
+
+    def test_registration_rejects_non_numeric_phone(self):
+        response = self.client.post(reverse('chat:registro'), {
+            'nombre': 'Ana',
+            'apellido': 'Pérez',
+            'cedula': '12345678',
+            'correo': 'ana@correo.com',
+            'patologia': 'diabetes',
+            'genero': 'mujer',
+            'direccion': 'Calle 1',
+            'n_telefono': '0412-1234567',
+            'fecha_nacimiento': '2000-01-15',
+            'password': 'StrongRegistrationPassword123!',
+            'confirm_password': 'StrongRegistrationPassword123!',
+            'accept_terms': 'on',
+            **captcha_response(),
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Clientes.objects.filter(cedula='12345678').exists())
+
+
+class SuperadminPasswordChangeTests(TestCase):
+    def setUp(self):
+        self.cliente = Clientes.objects.create(
+            cedula='SuperAdminFarmaLuz',
+            password=make_password('Old-SuperAdmin-Password-1'),
+        )
+        session = self.client.session
+        session['user_type'] = 'admin'
+        session['cliente_id'] = self.cliente.cliente_id
+        session['cliente_cedula'] = self.cliente.cedula
+        session['last_activity'] = timezone.now().timestamp()
+        session.save()
+
+    def test_password_change_checks_current_password_and_saves_hash(self):
+        response = self.client.post(reverse('chat:superadmin_password_change'), {
+            'current_password': 'Old-SuperAdmin-Password-1',
+            'new_password': 'New-SuperAdmin-Password-2!',
+            'confirm_password': 'New-SuperAdmin-Password-2!',
+        })
+
+        self.assertRedirects(response, reverse('chat:admin_dashboard'))
+        self.cliente.refresh_from_db()
+        self.assertTrue(check_password('New-SuperAdmin-Password-2!', self.cliente.password))
+
+
+class SessionTimeoutTests(TestCase):
+    def test_user_can_explicitly_renew_session_during_warning_grace_period(self):
+        session = self.client.session
+        session['user_type'] = 'client'
+        session['last_activity'] = timezone.now().timestamp() - 481
+        session.save()
+
+        response = self.client.post(reverse('chat:renew_session'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        self.assertGreater(self.client.session['last_activity'], timezone.now().timestamp() - 5)
+
+    def test_expired_session_is_flushed_and_redirects_with_message_marker(self):
+        cliente = Clientes.objects.create(cedula='12345678')
+        session = self.client.session
+        session['user_type'] = 'client'
+        session['cliente_id'] = cliente.cliente_id
+        session['cliente_cedula'] = cliente.cedula
+        session['last_activity'] = timezone.now().timestamp() - 520
+        session.save()
+
+        response = self.client.get(reverse('chat:bot_chat'))
+
+        self.assertRedirects(response, f"{reverse('chat:login')}?expired=1")
+        self.assertNotIn('user_type', self.client.session)
+
+
+class AuthTemplateSecurityTests(TestCase):
+    def test_auth_forms_render_captcha_under_csp(self):
+        for url in (
+            reverse('chat:login'),
+            reverse('chat:registro'),
+            reverse('chat:password_reset'),
+        ):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'captcha')
+                policy = response.headers['Content-Security-Policy']
+                self.assertIn("script-src 'self'", policy)
+                self.assertIn('https://fonts.googleapis.com', policy)
+                self.assertIn('https://cdnjs.cloudflare.com', policy)
+
+    def test_registration_links_terms_in_a_new_tab(self):
+        response = self.client.get(reverse('chat:registro'))
+        content = response.content.decode()
+        checkbox_position = content.index('name="accept_terms"')
+        submit_position = content.index('Guardar registro')
+
+        self.assertIn('target="_blank"', content[checkbox_position:submit_position])
+        self.assertLess(checkbox_position, submit_position)
+        self.assertEqual(self.client.get(reverse('chat:terminos')).status_code, 200)
+
+    def test_password_reset_rejects_submission_without_captcha(self):
+        response = self.client.post(reverse('chat:password_reset'), {
+            'correo': 'ana@correo.com',
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, 'captcha', status_code=400)
 
 
 class ChatBlockTests(TestCase):

@@ -1,6 +1,12 @@
 Django==5.2
 Uso: framework principal del proyecto; maneja vistas, rutas, sesiones, plantillas y ORM.
 
+django-simple-captcha==0.6.2
+Uso: protección CAPTCHA de los formularios de acceso, registro y recuperación de contraseña.
+
+django-csp==4.0
+Uso: cabeceras Content Security Policy para reducir la exposición a XSS.
+
 django-simple-chatbot==0.0.9
 Uso: dependencia auxiliar del ecosistema del chatbot.
 

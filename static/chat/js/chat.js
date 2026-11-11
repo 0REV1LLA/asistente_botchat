@@ -175,6 +175,7 @@ function getCookie(name) {
 function initChat() {
     loadHistory();
     const input = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendMessageBtn');
     const scrollButton = document.getElementById('scrollToBottomBtn');
     const logoutLink = document.querySelector('.js-logout-link');
     const confirmDialog = setupConfirmDialog();
@@ -200,6 +201,7 @@ function initChat() {
             if (e.key === 'Enter') sendMessage();
         });
     }
+    sendButton?.addEventListener('click', sendMessage);
 
     if (logoutLink) {
         logoutLink.addEventListener('click', (event) => {
