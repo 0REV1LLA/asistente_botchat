@@ -12,10 +12,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     password?.addEventListener('input', () => {
         requirements.forEach(([element, isValid]) => {
-            if (element) element.classList.toggle('requirement-met', isValid(password.value));
+            if (!element) return;
+            const met = isValid(password.value);
+            element.classList.toggle('requirement-met', met);
+            const icon = element.querySelector('i');
+            if (icon) {
+                icon.classList.toggle('fa-circle', !met);
+                icon.classList.toggle('fa-circle-check', met);
+            }
         });
         confirmPassword?.setCustomValidity('');
     });
+    confirmPassword?.addEventListener('input', () => confirmPassword.setCustomValidity(''));
 
     [['togglePassword', password, 'eyeIconPassword'], ['toggleConfirm', confirmPassword, 'eyeIconConfirm']]
         .forEach(([buttonId, input, iconId]) => {

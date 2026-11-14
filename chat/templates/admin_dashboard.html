@@ -162,13 +162,49 @@
             <h2 id="passwordChangeTitle">Cambiar contraseña</h2>
             <form method="post" action="{% url 'chat:superadmin_password_change' %}" class="password-change-form">
                 {% csrf_token %}
-                {% for field in password_form %}
                 <label class="field">
-                    <span>{{ field.label }}</span>
-                    {{ field }}
-                    {% for error in field.errors %}<small class="field-error" role="alert">{{ error }}</small>{% endfor %}
+                    <span>{{ password_form.current_password.label }}</span>
+                    <span class="input-wrap password-input-wrap">
+                        <i class="fa-solid fa-lock password-lock" aria-hidden="true"></i>
+                        {{ password_form.current_password }}
+                        <button type="button" class="toggle-password" data-password-toggle="id_current_password" aria-label="Mostrar u ocultar contraseña actual">
+                            <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                        </button>
+                    </span>
+                    {% for error in password_form.current_password.errors %}<small class="field-error" role="alert">{{ error }}</small>{% endfor %}
                 </label>
-                {% endfor %}
+                <label class="field">
+                    <span>{{ password_form.new_password.label }}</span>
+                    <span class="input-wrap password-input-wrap">
+                        <i class="fa-solid fa-lock password-lock" aria-hidden="true"></i>
+                        {{ password_form.new_password }}
+                        <button type="button" class="toggle-password" data-password-toggle="id_new_password" aria-label="Mostrar u ocultar nueva contraseña">
+                            <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                        </button>
+                    </span>
+                    {% for error in password_form.new_password.errors %}<small class="field-error" role="alert">{{ error }}</small>{% endfor %}
+                </label>
+                <label class="field">
+                    <span>{{ password_form.confirm_password.label }}</span>
+                    <span class="input-wrap password-input-wrap">
+                        <i class="fa-solid fa-lock password-lock" aria-hidden="true"></i>
+                        {{ password_form.confirm_password }}
+                        <button type="button" class="toggle-password" data-password-toggle="id_confirm_password" aria-label="Mostrar u ocultar confirmación">
+                            <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                        </button>
+                    </span>
+                    {% for error in password_form.confirm_password.errors %}<small class="field-error" role="alert">{{ error }}</small>{% endfor %}
+                </label>
+                <div class="password-requirements" id="adminPasswordRequirements">
+                    <p>La contraseña debe cumplir:</p>
+                    <ul>
+                        <li id="adminReqLength" class="password-requirement"><i class="fa-solid fa-circle" aria-hidden="true"></i> Al menos 16 caracteres</li>
+                        <li id="adminReqUppercase" class="password-requirement"><i class="fa-solid fa-circle" aria-hidden="true"></i> Al menos una letra mayúscula</li>
+                        <li id="adminReqLowercase" class="password-requirement"><i class="fa-solid fa-circle" aria-hidden="true"></i> Al menos una letra minúscula</li>
+                        <li id="adminReqNumber" class="password-requirement"><i class="fa-solid fa-circle" aria-hidden="true"></i> Al menos un número</li>
+                        <li id="adminReqSpecial" class="password-requirement"><i class="fa-solid fa-circle" aria-hidden="true"></i> Al menos un carácter especial (!@#$%^&amp;*(),.?&quot;:{}|&lt;&gt;)</li>
+                    </ul>
+                </div>
                 <div class="confirm-actions">
                     <button type="button" class="confirm-button cancel" data-password-close>Cancelar</button>
                     <button type="submit" class="confirm-button accept">Guardar contraseña</button>
@@ -191,6 +227,7 @@
     <div hidden>{% csrf_token %}</div>
     {{ conversations|json_script:"conversations-data" }}
     <script src="{% static 'chat/js/admin_dashboard.js' %}" defer></script>
+    <script src="{% static 'chat/js/admin_password_change.js' %}" defer></script>
     <script src="{% static 'chat/js/session_timeout.js' %}" defer data-session-timeout
         data-logout-url="{% url 'chat:logout' %}"
         data-renew-url="{% url 'chat:renew_session' %}"

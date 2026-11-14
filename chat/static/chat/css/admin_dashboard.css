@@ -657,6 +657,96 @@ body {
     font: inherit;
 }
 
+.password-change-form .password-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-change-form .password-input-wrap .password-lock {
+    position: absolute;
+    top: 50%;
+    left: 14px;
+    z-index: 2;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.password-change-form .password-input-wrap input.password-input {
+    padding-left: 42px;
+    padding-right: 42px;
+}
+
+.password-change-form .password-input-wrap .toggle-password {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transform: translateY(-50%);
+    z-index: 3;
+}
+
+.password-change-form .password-input-wrap .toggle-password:hover,
+.password-change-form .password-input-wrap .toggle-password:focus-visible {
+    color: #0f6f4b;
+    background: rgba(17, 168, 111, 0.08);
+}
+
+.password-change-form .password-input-wrap .toggle-password i {
+    position: static;
+    transform: none;
+    pointer-events: none;
+}
+
+.password-change-form .password-requirements {
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: #f8fafc;
+    font-size: 0.8rem;
+}
+
+.password-change-form .password-requirements > p {
+    margin: 0 0 6px;
+    font-weight: 600;
+}
+
+.password-change-form .password-requirements ul {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.password-change-form .password-requirement {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    color: #dc2626;
+}
+
+.password-change-form .password-requirement i {
+    font-size: 0.5rem;
+}
+
+.password-change-form .password-requirement.requirement-met {
+    color: #16834a;
+}
+
+.password-change-form .password-requirement.requirement-met i {
+    font-size: 0.8rem;
+}
+
 .password-change-form .field-error {
     color: #b42318;
     font-size: 0.8rem;

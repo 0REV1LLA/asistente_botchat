@@ -98,17 +98,17 @@ class SuperadminPasswordChangeForm(forms.Form):
     current_password = forms.CharField(
         label='Contraseña actual',
         strip=False,
-        widget=forms.PasswordInput,
+        widget=forms.PasswordInput(attrs={'class': 'password-input'}),
     )
     new_password = forms.CharField(
         label='Nueva contraseña',
         strip=False,
-        widget=forms.PasswordInput,
+        widget=forms.PasswordInput(attrs={'class': 'password-input'}),
     )
     confirm_password = forms.CharField(
         label='Confirmar nueva contraseña',
         strip=False,
-        widget=forms.PasswordInput,
+        widget=forms.PasswordInput(attrs={'class': 'password-input'}),
     )
 
     def __init__(self, *args, cliente, **kwargs):

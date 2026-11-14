@@ -255,6 +255,59 @@ h1 {
     color: #8e99ad;
     font-size: 16px;
 }
+
+.input-wrap.password-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-wrap.password-input-wrap .password-lock {
+    position: absolute;
+    top: 50%;
+    left: 14px;
+    z-index: 2;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.input-wrap.password-input-wrap input.password-input {
+    width: 100%;
+    padding-left: 42px;
+    padding-right: 42px;
+}
+
+.password-input-wrap .toggle-password {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #8e99ad;
+    cursor: pointer;
+    transform: translateY(-50%);
+    z-index: 3;
+}
+
+.password-input-wrap .toggle-password:hover,
+.password-input-wrap .toggle-password:focus-visible {
+    color: var(--green-dark);
+    background: rgba(18, 183, 106, 0.08);
+}
+
+.password-input-wrap .toggle-password i {
+    position: static;
+    transform: none;
+    color: inherit;
+    pointer-events: none;
+}
+
 .input-wrap input {
     width: 100%;
     border: 1px solid #d8dee9;
@@ -645,6 +698,74 @@ body.confirm-open {
 .field-feedback.is-valid,
 .requirement-met {
     color: #16834a !important;
+}
+
+.form-error-summary {
+    text-align: center;
+}
+
+.form-error-summary p {
+    margin: 0;
+}
+
+.form-error-summary p + p {
+    margin-top: 4px;
+}
+
+.password-requirements {
+    padding: 8px 16px;
+    border-radius: 12px;
+    background: #f8fafc;
+    font-size: 0.8rem;
+}
+
+.password-requirements > p {
+    margin: 0 0 6px;
+    font-weight: 600;
+}
+
+.password-requirements ul {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.password-requirement {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    color: #dc2626;
+}
+
+.password-requirement i {
+    font-size: 0.5rem;
+}
+
+.password-requirement.requirement-met {
+    color: #16834a !important;
+}
+
+.password-requirement.requirement-met i {
+    font-size: 0.8rem;
+}
+
+.reset-error-link {
+    margin-top: 8px;
+}
+
+.reset-alternative {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.reset-action-btn {
+    display: inline-flex;
+    width: auto;
+    padding: 12px 32px;
+    text-decoration: none;
 }
 
 .terms-checkbox {

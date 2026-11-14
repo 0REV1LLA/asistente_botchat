@@ -26,6 +26,10 @@
                 </div>
             </div>
 
+            {% for message in messages %}
+            <div class="success-box" role="status">{{ message }}</div>
+            {% endfor %}
+
             {% if registration_success %}
             <div class="success-box" role="status">Tu registro fue guardado. Ahora ingresa tu cédula para entrar al sistema.</div>
             {% endif %}
@@ -52,9 +56,9 @@
 
                 <label class="field">
                     <span>Contraseña</span>
-                    <div class="input-wrap">
-                        <i class="fa-solid fa-lock lock2"></i>
-                        <input type="password" name="password" id="password" placeholder="Ingresa tu contraseña" required>
+                    <div class="input-wrap password-input-wrap">
+                        <i class="fa-solid fa-lock password-lock"></i>
+                        <input type="password" name="password" id="password" class="password-input" placeholder="Ingresa tu contraseña" required>
                         <button type="button" class="toggle-password" id="togglePassword" aria-label="Mostrar u ocultar contraseña">
                             <i class="fa-solid fa-eye" id="eyeIconPassword"></i>
                         </button>

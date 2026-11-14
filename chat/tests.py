@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import date
 
 from captcha.models import CaptchaStore
@@ -103,6 +104,65 @@ class SuperadminPasswordChangeTests(TestCase):
         self.cliente.refresh_from_db()
         self.assertTrue(check_password('New-SuperAdmin-Password-2!', self.cliente.password))
 
+    def test_password_change_modal_has_toggle_controls_and_live_requirements(self):
+        response = self.client.get(reverse('chat:admin_dashboard'))
+        content = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(content.count('data-password-toggle='), 3)
+        for requirement_id in (
+            'adminReqLength',
+            'adminReqUppercase',
+            'adminReqLowercase',
+            'adminReqNumber',
+            'adminReqSpecial',
+        ):
+            self.assertIn(requirement_id, content)
+        self.assertIn('chat/js/admin_password_change.js', content)
+        self.assertNotRegex(content, r'\sstyle\s*=')
+
+
+class PasswordResetConfirmationTests(TestCase):
+    def test_password_reset_redirects_to_login_with_success_message(self):
+        cliente = Clientes.objects.create(
+            cedula='12345678',
+            correo='ana@correo.com',
+            password=make_password('Old-Registration-Password-1!'),
+        )
+        from django.utils.encoding import force_bytes
+        from django.utils.http import urlsafe_base64_encode
+        from .views import _build_reset_signature
+
+        uidb64 = urlsafe_base64_encode(force_bytes(cliente.cliente_id))
+        signed_token = _build_reset_signature(uidb64, 'reset-token')
+        email_token = urlsafe_base64_encode(force_bytes(signed_token))
+        confirm_url = reverse('chat:password_reset_confirm', kwargs={'signed_token': email_token})
+        confirm_page = self.client.get(confirm_url)
+        self.assertEqual(confirm_page.status_code, 200)
+        self.assertEqual(
+            confirm_page.content.decode().count('class="input-wrap password-input-wrap"'),
+            2,
+        )
+        self.assertNotRegex(confirm_page.content.decode(), r'\sstyle\s*=')
+
+        response = self.client.post(
+            confirm_url,
+            {
+                'new_password1': 'Reset-Registration-Password-2!',
+                'new_password2': 'Reset-Registration-Password-2!',
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse('chat:login'),
+            fetch_redirect_response=False,
+        )
+        login_response = self.client.get(response.url)
+        self.assertContains(login_response, 'Tu contraseña se actualizó correctamente.')
+        cliente.refresh_from_db()
+        self.assertTrue(check_password('Reset-Registration-Password-2!', cliente.password))
+
 
 class SessionTimeoutTests(TestCase):
     def test_user_can_explicitly_renew_session_during_warning_grace_period(self):
@@ -147,6 +207,8 @@ class AuthTemplateSecurityTests(TestCase):
                 self.assertIn("script-src 'self'", policy)
                 self.assertIn('https://fonts.googleapis.com', policy)
                 self.assertIn('https://cdnjs.cloudflare.com', policy)
+                self.assertNotRegex(response.content.decode(), r'\sstyle\s*=')
+                self.assertNotRegex(response.content.decode(), r'<script(?![^>]*\bsrc=)[^>]*>')
 
     def test_registration_links_terms_in_a_new_tab(self):
         response = self.client.get(reverse('chat:registro'))
@@ -157,6 +219,21 @@ class AuthTemplateSecurityTests(TestCase):
         self.assertIn('target="_blank"', content[checkbox_position:submit_position])
         self.assertLess(checkbox_position, submit_position)
         self.assertEqual(self.client.get(reverse('chat:terminos')).status_code, 200)
+
+    def test_registration_errors_are_rendered_without_raw_field_names(self):
+        response = self.client.post(reverse('chat:registro'), {})
+        content = response.content.decode()
+
+        self.assertEqual(response.status_code, 400)
+        summary = re.search(
+            r'<div class="error-box form-error-summary" role="alert">(.*?)</div>',
+            content,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(summary)
+        self.assertNotIn('<ul', summary.group(1))
+        self.assertNotIn('<li>', summary.group(1))
+        self.assertNotIn('correo', summary.group(1))
 
     def test_password_reset_rejects_submission_without_captcha(self):
         response = self.client.post(reverse('chat:password_reset'), {

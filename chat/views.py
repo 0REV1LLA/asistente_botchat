@@ -949,7 +949,7 @@ def password_reset_confirm(request, signed_token):
             
             # Limpiar sesión si existe
             _clear_password_reset_state(request)
-            
+            messages.success(request, 'Tu contraseña se actualizó correctamente.')
             return redirect('chat:login')
         
         return render(request, 'chat/password_reset_confirm.html', {
