@@ -18,7 +18,7 @@
             <header class="chat-hero">
                 <div class="brand-block">
                     <div class="brand-logo">
-                        <img src="{% static 'chat/img/farmaluz-logo.png' %}" alt="FarmaLuz">
+                        <img src="{% static 'chat/img/farmaluz-logo.png' %}" alt="FarmaLuz" fetchpriority="high" loading="eager">
                     </div>
                     <div>
                         <p class="eyebrow">FarmaLuz</p>
@@ -72,7 +72,7 @@
                         <i class="fa-solid {% if cliente_bloqueado %}fa-ban{% else %}fa-shield-heart{% endif %}"></i>
                         <span>{% if cliente_bloqueado %}Usuario bloqueado{% else %}Chat activo{% endif %}</span>
                     </div>
-                    <div class="messages" id="messages"></div>
+                    <div class="messages" id="messages" data-history-url="{% url 'chat:chat_history' %}" data-has-more="{{ history_has_more|yesno:'true,false' }}"></div>
 
                     <div class="input-area {% if cliente_bloqueado %}is-disabled{% endif %}">
                         <div class="composer-wrap {% if cliente_bloqueado %}single-control{% endif %}">
@@ -112,7 +112,7 @@
 
     <div hidden>{% csrf_token %}</div>
     {{ chat_history|json_script:"chat-history-data" }}
-    <script src="{% static 'chat/js/chat.js' %}?v=2"></script>
+    <script src="{% static 'chat/js/chat.js' %}?v=2" defer></script>
     <script src="{% static 'chat/js/session_timeout.js' %}" defer data-session-timeout
         data-logout-url="{% url 'chat:logout' %}"
         data-renew-url="{% url 'chat:renew_session' %}"

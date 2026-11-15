@@ -19,10 +19,12 @@ urlpatterns = [
 
     # URLs del chatbot
     path('bot/', views.chat_view, name='bot_chat'),
+    path('bot/historial/', views.chat_history_view, name='chat_history'),
     path('enviar/', views.enviar_mensaje, name='enviar_mensaje'),
 
     # URLs del admin
     path('admin-dashboard/', views.admin_dashboard_view, name='admin_dashboard'),
+    path('admin-dashboard/historial/', views.admin_conversation_history_view, name='admin_conversation_history'),
     path('admin-dashboard/cambiar-contrasena/', views.superadmin_password_change_view, name='superadmin_password_change'),
     path('bloquear/<int:cliente_id>/', views.toggle_bloqueo_cliente, name='toggle_bloqueo_cliente'),
     path('borrar-conversacion/', views.borrar_conversacion, name='borrar_conversacion'),

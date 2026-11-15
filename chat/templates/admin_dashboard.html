@@ -22,7 +22,7 @@
                 <div class="brand-block">
                     <div class="brand-logo">
                         {% if brand_logo_url %}
-                        <img src="{{ brand_logo_url }}" alt="FarmaLuz">
+                        <img src="{{ brand_logo_url }}" alt="FarmaLuz" fetchpriority="high" loading="eager">
                         {% else %}
                         <span>FL</span>
                         {% endif %}
@@ -110,7 +110,7 @@
                     <span class="meta-label">Patología</span>
                     <strong id="threadClientPatologia">-</strong>
                 </div>
-                <div class="messages" id="threadMessages"></div>
+                <div class="messages" id="threadMessages" data-history-url="{% url 'chat:admin_conversation_history' %}"></div>
 
                 <footer class="read-only-footer">
                     <div class="readonly-copy">

@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Clientes
+from .models import Almacen, ChatMessage, Clientes, Productos
 
 
 def captcha_response():
@@ -120,6 +120,114 @@ class SuperadminPasswordChangeTests(TestCase):
             self.assertIn(requirement_id, content)
         self.assertIn('chat/js/admin_password_change.js', content)
         self.assertNotRegex(content, r'\sstyle\s*=')
+
+
+class ChatHistoryPaginationTests(TestCase):
+    def setUp(self):
+        self.cliente = Clientes.objects.create(
+            cedula='12345678',
+            nombre='Ana',
+            password=make_password('Client-Password-1!'),
+        )
+        self.conversation_key = self.cliente.cedula
+        self.message_ids = []
+        for index in range(55):
+            message = ChatMessage.objects.create(
+                conversation_key=self.conversation_key,
+                cliente=self.cliente,
+                sender=ChatMessage.Sender.CLIENT,
+                message=f'Mensaje {index}',
+            )
+            self.message_ids.append(message.pk)
+
+    def _set_client_session(self):
+        session = self.client.session
+        session['user_type'] = 'client'
+        session['cliente_id'] = self.cliente.cliente_id
+        session['cliente_cedula'] = self.cliente.cedula
+        session['conversation_key'] = self.conversation_key
+        session.save()
+
+    def test_chat_initial_history_is_limited_and_older_messages_are_fetchable(self):
+        self._set_client_session()
+        response = self.client.get(reverse('chat:bot_chat'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['chat_history']), 50)
+        self.assertTrue(response.context['history_has_more'])
+
+        oldest_initial_id = response.context['chat_history'][0]['id']
+        older_response = self.client.get(
+            reverse('chat:chat_history'),
+            {'before_id': oldest_initial_id},
+        )
+
+        self.assertEqual(older_response.status_code, 200)
+        older_messages = older_response.json()['messages']
+        self.assertEqual(len(older_messages), 5)
+        self.assertEqual(
+            [message['id'] for message in older_messages],
+            self.message_ids[:5],
+        )
+        self.assertFalse(older_response.json()['has_more'])
+
+    def test_chat_history_endpoint_requires_client_session(self):
+        response = self.client.get(reverse('chat:chat_history'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_dashboard_loads_only_the_latest_history_page(self):
+        admin = Clientes.objects.create(
+            cedula='SuperAdminFarmaLuz',
+            password=make_password('Admin-Password-1!'),
+        )
+        session = self.client.session
+        session['user_type'] = 'admin'
+        session['cliente_id'] = admin.cliente_id
+        session['cliente_cedula'] = admin.cedula
+        session.save()
+
+        response = self.client.get(reverse('chat:admin_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        conversation = response.context['conversations'][0]
+        self.assertEqual(len(conversation['messages']), 50)
+        self.assertTrue(conversation['has_more'])
+        self.assertTrue(conversation['messages_loaded'])
+
+        older_response = self.client.get(
+            reverse('chat:admin_conversation_history'),
+            {
+                'conversation_key': self.conversation_key,
+                'before_id': conversation['messages'][0]['id'],
+            },
+        )
+
+        self.assertEqual(older_response.status_code, 200)
+        older_messages = older_response.json()['messages']
+        self.assertEqual(len(older_messages), 5)
+        self.assertFalse(older_response.json()['has_more'])
+
+
+class ProductStockQueryTests(TestCase):
+    def test_stock_command_prefetches_inventory_for_all_limited_products(self):
+        for index, quantity in enumerate((12, 4, 0)):
+            product = Productos.objects.create(
+                nombre_producto=f'Analgesico {index}',
+                descripcion='',
+                contenido='',
+                marca='',
+                tiene_iva=False,
+            )
+            Almacen.objects.create(id_producto=product, cantidad=quantity)
+
+        from .views import ChatBotFarmaluz
+
+        with self.assertNumQueries(2):
+            response = ChatBotFarmaluz().procesar_mensaje('disponible analgesico')
+
+        self.assertIn('Disponible (12 unidades)', response)
+        self.assertIn('Cantidad baja (4 unidades)', response)
+        self.assertIn('Agotado', response)
 
 
 class PasswordResetConfirmationTests(TestCase):

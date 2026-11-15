@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializar menú lateral
     initSidebar();
 
-    function scrollThreadToBottom(smooth = true) {
+function scrollThreadToBottom(smooth = true) {
         if (!threadMessages) {
             return;
         }
@@ -233,15 +233,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderMessages(conversation) {
+    function renderMessages(conversation, preserveScrollPosition = false) {
+        const previousHeight = threadMessages.scrollHeight;
+        const previousTop = threadMessages.scrollTop;
         threadMessages.innerHTML = '';
 
         conversation.messages.forEach((message) => {
             const bubble = document.createElement('article');
             bubble.className = `message ${bubbleClassFor(message)}`;
+            if (message.id !== null && message.id !== undefined) {
+                bubble.dataset.messageId = String(message.id);
+            }
+
+            const labelText = (bubbleClassFor(message) === 'client') ? 'Cliente' : (message.sender_label || '');
 
             bubble.innerHTML = `
-                <div class="message-label">${escapeHtml(message.sender_label || '')}</div>
+                <div class="message-label">${escapeHtml(labelText)}</div>
                 <div class="message-text">${formatMessage(message.text)}</div>
                 <span class="msg-time">${escapeHtml(message.time)}</span>
             `;
@@ -249,55 +256,124 @@ document.addEventListener('DOMContentLoaded', () => {
             threadMessages.appendChild(bubble);
         });
 
-        threadMessages.scrollTop = threadMessages.scrollHeight;
+        threadMessages.scrollTop = preserveScrollPosition
+            ? previousTop + threadMessages.scrollHeight - previousHeight
+            : threadMessages.scrollHeight;
     }
 
-// chat/static/chat/js/admin_dashboard.js
-function setActiveConversation(conversationKey) {
-    const conversation = conversations.find((item) => item.conversation_key === conversationKey);
-    if (!conversation) {
-        return;
-    }
+    let activeConversationKey = null;
+    let loadingOlderMessages = false;
 
-    document.querySelectorAll('.conversation-item').forEach((item) => {
-        item.classList.toggle('active', item.dataset.conversationKey === conversationKey);
-    });
-
-    title.textContent = conversation.client_name;
-    subtitle.textContent = `Último movimiento a las ${conversation.last_time}.`;
-    clientName.textContent = conversation.client_name;
-    clientCedula.textContent = conversation.cedula;
-
-    const patologiaElement = document.getElementById('threadClientPatologia');
-    if (patologiaElement) {
-        const patologiaMap = {
-            'hipertension': 'Hipertensión',
-            'diabetes': 'Diabetes',
-            'oftalmologico': 'Oftalmológico',
-            'pediatrico': 'Pediátrico',
-            'ginecologico': 'Ginecológico',
-            'otro': 'Otros'
-        };
-        patologiaElement.textContent = patologiaMap[conversation.patologia] || conversation.patologia || '-';
-    }
-
-    if (threadMeta) {
-        const bloqueoBadge = document.getElementById('block-status-badge');
-        if (bloqueoBadge) {
-            bloqueoBadge.remove();
+    async function setActiveConversation(conversationKey) {
+        const conversation = conversations.find((item) => item.conversation_key === conversationKey);
+        if (!conversation) {
+            return;
         }
-        const badge = document.createElement('span');
-        badge.id = 'block-status-badge';
-        badge.className = conversation.bloqueado ? 'status-badge blocked' : 'status-badge active';
-        badge.textContent = conversation.bloqueado ? 'Bloqueado' : 'Activo';
-        threadMeta.appendChild(badge);
+
+        activeConversationKey = conversationKey;
+        title.dataset.conversationKey = conversationKey;
+        document.querySelectorAll('.conversation-item').forEach((item) => {
+            item.classList.toggle('active', item.dataset.conversationKey === conversationKey);
+        });
+
+        title.textContent = conversation.client_name;
+        subtitle.textContent = `Último movimiento a las ${conversation.last_time}.`;
+        clientName.textContent = conversation.client_name;
+        clientCedula.textContent = conversation.cedula;
+
+        const patologiaElement = document.getElementById('threadClientPatologia');
+        if (patologiaElement) {
+            const patologiaMap = {
+                'hipertension': 'Hipertensión',
+                'diabetes': 'Diabetes',
+                'oftalmologico': 'Oftalmológico',
+                'pediatrico': 'Pediátrico',
+                'ginecologico': 'Ginecológico',
+                'otro': 'Otros'
+            };
+            patologiaElement.textContent = patologiaMap[conversation.patologia] || conversation.patologia || '-';
+        }
+
+        if (threadMeta) {
+            const bloqueoBadge = document.getElementById('block-status-badge');
+            if (bloqueoBadge) {
+                bloqueoBadge.remove();
+            }
+            const badge = document.createElement('span');
+            badge.id = 'block-status-badge';
+            badge.className = conversation.bloqueado ? 'status-badge blocked' : 'status-badge active';
+            badge.textContent = conversation.bloqueado ? 'Bloqueado' : 'Activo';
+            threadMeta.appendChild(badge);
+        }
+
+        emptyState.hidden = true;
+        chatThread.hidden = false;
+        if (!conversation.messages_loaded) {
+            if (conversation.messages_loading) {
+                return;
+            }
+            threadMessages.innerHTML = '';
+            conversation.messages_loading = true;
+            try {
+                const historyUrl = threadMessages.dataset.historyUrl;
+                const query = new URLSearchParams({ conversation_key: conversationKey });
+                const response = await fetch(`${historyUrl}?${query.toString()}`);
+                if (!response.ok) {
+                    throw new Error('No se pudo cargar el historial de la conversación.');
+                }
+                const data = await response.json();
+                conversation.messages = data.messages;
+                conversation.has_more = Boolean(data.has_more);
+                conversation.messages_loaded = true;
+            } catch (error) {
+                console.error('Error al cargar la conversación:', error);
+            } finally {
+                conversation.messages_loading = false;
+            }
+            if (activeConversationKey !== conversationKey || !conversation.messages_loaded) {
+                return;
+            }
+        }
+
+        renderMessages(conversation);
+        scrollThreadToBottom(false);
+        if (conversation.has_more && threadMessages.scrollHeight <= threadMessages.clientHeight) {
+            loadOlderThreadMessages();
+        }
     }
 
-    emptyState.hidden = true;
-    chatThread.hidden = false;
-    renderMessages(conversation);
-    scrollThreadToBottom(false);
-}
+    async function loadOlderThreadMessages() {
+        const conversation = conversations.find((item) => item.conversation_key === activeConversationKey);
+        const firstMessage = threadMessages.querySelector('.message[data-message-id]');
+        const beforeId = firstMessage?.dataset.messageId;
+        const historyUrl = threadMessages.dataset.historyUrl;
+        if (!conversation || !conversation.has_more || loadingOlderMessages || !beforeId || !historyUrl) {
+            return;
+        }
+
+        loadingOlderMessages = true;
+        try {
+            const query = new URLSearchParams({
+                conversation_key: conversation.conversation_key,
+                before_id: beforeId,
+            });
+            const response = await fetch(`${historyUrl}?${query.toString()}`);
+            if (!response.ok) {
+                throw new Error('No se pudo cargar el historial anterior.');
+            }
+            const data = await response.json();
+            if (activeConversationKey !== conversation.conversation_key) {
+                return;
+            }
+            conversation.messages = data.messages.concat(conversation.messages);
+            conversation.has_more = Boolean(data.has_more);
+            renderMessages(conversation, true);
+        } catch (error) {
+            console.error('Error al cargar mensajes anteriores:', error);
+        } finally {
+            loadingOlderMessages = false;
+        }
+    }
 
 const logoutLink = document.querySelector('.js-logout-link');
 if (logoutLink) {
@@ -305,6 +381,7 @@ if (logoutLink) {
         if (!confirmDialog) {
             return;
         }
+
         event.preventDefault();
         confirmDialog({
             titleText: 'Cerrar sesión',
@@ -463,6 +540,9 @@ if (!conversations.length) {
             if (scrollButton) {
                 const distanceFromBottom = threadMessages.scrollHeight - threadMessages.scrollTop - threadMessages.clientHeight;
                 scrollButton.dataset.atBottom = distanceFromBottom < 120 ? 'true' : 'false';
+            }
+            if (threadMessages.scrollTop <= 20) {
+                loadOlderThreadMessages();
             }
         });
     }

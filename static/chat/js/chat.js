@@ -7,18 +7,28 @@ function escapeHtml(value) {
         .replace(/'/g, '&#039;');
 }
 
-function renderMessage(text, sender, time = '') {
-    const messages = document.getElementById('messages');
+function createMessageElement(text, sender, time = '', id = null) {
     const div = document.createElement('div');
     div.className = `message ${sender}`;
+    if (id !== null) {
+        div.dataset.messageId = String(id);
+    }
     div.innerHTML = `
         <div class="text">${escapeHtml(text).replace(/\n/g, '<br>')}</div>
         ${time ? `<span class="msg-time">${escapeHtml(time)}</span>` : ''}
     `;
-    messages.appendChild(div);
+    return div;
+}
+
+function renderMessage(text, sender, time = '', id = null) {
+    const messages = document.getElementById('messages');
+    messages.appendChild(createMessageElement(text, sender, time, id));
     messages.scrollTop = messages.scrollHeight;
     updateScrollButton();
 }
+
+let hasOlderHistory = false;
+let loadingOlderHistory = false;
 
 function loadHistory() {
     const historyElement = document.getElementById('chat-history-data');
@@ -29,11 +39,52 @@ function loadHistory() {
         return;
     }
 
+    hasOlderHistory = messages.dataset.hasMore === 'true';
     const history = JSON.parse(historyElement.textContent || '[]');
     history.forEach((message) => {
-        renderMessage(message.text, message.sender === 'client' ? 'user' : 'bot', message.time || '');
+        renderMessage(message.text, message.sender === 'client' ? 'user' : 'bot', message.time || '', message.id);
     });
     scrollToBottom(false);
+    if (hasOlderHistory && messages.scrollHeight <= messages.clientHeight) {
+        loadOlderHistory();
+    }
+}
+
+async function loadOlderHistory() {
+    const messages = document.getElementById('messages');
+    const firstMessage = messages?.querySelector('.message[data-message-id]');
+    const beforeId = firstMessage?.dataset.messageId;
+    const historyUrl = messages?.dataset.historyUrl;
+    if (!hasOlderHistory || loadingOlderHistory || !beforeId || !historyUrl) {
+        return;
+    }
+
+    loadingOlderHistory = true;
+    try {
+        const response = await fetch(`${historyUrl}?before_id=${encodeURIComponent(beforeId)}`);
+        if (!response.ok) {
+            throw new Error('No se pudo cargar el historial anterior.');
+        }
+        const data = await response.json();
+        const previousHeight = messages.scrollHeight;
+        const fragment = document.createDocumentFragment();
+        data.messages.forEach((message) => {
+            fragment.appendChild(createMessageElement(
+                message.text,
+                message.sender === 'client' ? 'user' : 'bot',
+                message.time || '',
+                message.id,
+            ));
+        });
+        messages.insertBefore(fragment, messages.firstChild);
+        messages.scrollTop += messages.scrollHeight - previousHeight;
+        hasOlderHistory = Boolean(data.has_more);
+        updateScrollButton();
+    } catch (error) {
+        console.error('Error al cargar mensajes anteriores:', error);
+    } finally {
+        loadingOlderHistory = false;
+    }
 }
 
 function scrollToBottom(smooth = true) {
@@ -228,7 +279,12 @@ function initChat() {
 
     const messages = document.getElementById('messages');
     if (messages) {
-        messages.addEventListener('scroll', updateScrollButton);
+        messages.addEventListener('scroll', () => {
+            updateScrollButton();
+            if (messages.scrollTop <= 20) {
+                loadOlderHistory();
+            }
+        });
         updateScrollButton();
     }
 

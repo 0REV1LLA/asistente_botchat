@@ -8,6 +8,8 @@ from datetime import timedelta
 from django.conf import settings
 from django.core import signing
 from django.core.mail import EmailMultiAlternatives
+from django.db.models import F, Prefetch, Window
+from django.db.models.functions import RowNumber
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
@@ -22,7 +24,7 @@ from django.templatetags.static import static
 import re
 from django.contrib.auth.hashers import make_password, check_password
 from django.contrib import messages
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from .constants import SUPERADMIN_CEDULA
 from .forms import (
@@ -57,8 +59,14 @@ def _catalog_unavailable_message(error_details=""):
     return 'El catálogo de productos no está disponible en esta base de datos todavía.'
 
 
-def _safe_product_list(queryset, limit=None):
+def _safe_product_list(queryset, limit=None, with_stock=False):
     try:
+        if with_stock:
+            queryset = queryset.prefetch_related(Prefetch(
+                'almacen',
+                queryset=Almacen.objects.order_by('pk'),
+                to_attr='_almacen_records',
+            ))
         if limit is not None:
             return list(queryset[:limit])
         return list(queryset)
@@ -254,7 +262,10 @@ Escribe `ayuda` para ver todos los comandos rápidos."""
             if not producto_nombre:
                 return "❌ Uso correcto: `precio NOMBRE`\nEjemplo: `precio paracetamol`"
             
-            productos = _safe_product_list(Productos.objects.filter(nombre_producto__icontains=producto_nombre), 5)
+            productos = _safe_product_list(
+                Productos.objects.filter(nombre_producto__icontains=producto_nombre),
+                5,
+            )
             if productos is None:
                 return _catalog_unavailable_message("Error en filtro de precio")
             if productos:
@@ -270,14 +281,19 @@ Escribe `ayuda` para ver todos los comandos rápidos."""
             if not producto_nombre:
                 return "❌ Uso correcto: `disponible NOMBRE`\nEjemplo: `disponible paracetamol`"
             
-            productos = _safe_product_list(Productos.objects.filter(nombre_producto__icontains=producto_nombre), 5)
+            productos = _safe_product_list(
+                Productos.objects.filter(nombre_producto__icontains=producto_nombre),
+                5,
+                with_stock=True,
+            )
             if productos is None:
                 return _catalog_unavailable_message("Error en filtro de disponibilidad")
             if productos:
                 respuesta = f"📊 **STOCK DE '{producto_nombre}':**\n\n"
                 for p in productos:
                     try:
-                        stock = Almacen.objects.filter(id_producto=p).first() or Almacen.objects.filter(id_producto_id=p.pk).first()
+                        stock_records = getattr(p, '_almacen_records', None)
+                        stock = stock_records[0] if stock_records else None
                         cantidad = stock.cantidad if stock else 0
                     except Exception as e:
                         print(f"Error consultando Almacen: {e}")
@@ -298,14 +314,19 @@ Escribe `ayuda` para ver todos los comandos rápidos."""
             if not producto_nombre:
                 return "❌ Uso correcto: `buscar NOMBRE`\nEjemplo: `buscar paracetamol`"
             
-            productos = _safe_product_list(Productos.objects.filter(nombre_producto__icontains=producto_nombre), 10)
+            productos = _safe_product_list(
+                Productos.objects.filter(nombre_producto__icontains=producto_nombre),
+                10,
+                with_stock=True,
+            )
             if productos is None:
                 return _catalog_unavailable_message("Error en búsqueda detallada")
             if productos:
                 respuesta = f"🔍 **RESULTADOS DE '{producto_nombre}':**\n\n"
                 for p in productos:
                     try:
-                        stock = Almacen.objects.filter(id_producto=p).first() or Almacen.objects.filter(id_producto_id=p.pk).first()
+                        stock_records = getattr(p, '_almacen_records', None)
+                        stock = stock_records[0] if stock_records else None
                         cantidad = stock.cantidad if stock else 0
                     except Exception:
                         cantidad = 0
@@ -428,6 +449,7 @@ def _is_admin_session(request):
 
 def _serialize_message(message):
     return {
+        'id': message.pk,
         'sender': message.sender,
         'bubble_class': _message_bubble_class(message),
         'sender_label': _message_sender_label(message),
@@ -436,14 +458,28 @@ def _serialize_message(message):
     }
 
 
+CHAT_HISTORY_PAGE_SIZE = 50
+
+
+def _get_message_page(conversation_key, before_id=None):
+    queryset = ChatMessage.objects.filter(
+        conversation_key=conversation_key,
+    ).select_related('cliente').order_by('-created_at', '-pk')
+    if before_id is not None:
+        queryset = queryset.filter(pk__lt=before_id)
+
+    page = list(queryset[:CHAT_HISTORY_PAGE_SIZE + 1])
+    has_more = len(page) > CHAT_HISTORY_PAGE_SIZE
+    messages = [_serialize_message(message) for message in reversed(page[:CHAT_HISTORY_PAGE_SIZE])]
+    return messages, has_more
+
+
 def _get_chat_history(conversation_key):
-    history = [
-        _serialize_message(message)
-        for message in ChatMessage.objects.filter(conversation_key=conversation_key).order_by('created_at')
-    ]
+    history, has_more = _get_message_page(conversation_key)
 
     if not history:
         history.append({
+            'id': None,
             'sender': ChatMessage.Sender.BOT,
             'bubble_class': 'bot',
             'sender_label': f'{BOT_EMOJI} {BOT_NAME}',
@@ -451,7 +487,7 @@ def _get_chat_history(conversation_key):
             'time': '',
         })
 
-    return history
+    return history, has_more
 
 
 # ============================================
@@ -459,49 +495,44 @@ def _get_chat_history(conversation_key):
 # ============================================
 def _build_conversations(request=None):
     conversations = OrderedDict()
-    messages = ChatMessage.objects.select_related('cliente').order_by('conversation_key', 'created_at')
-    
+
     # Obtener lista de conversaciones ocultas desde la base de datos
-    hidden = []
+    hidden = None
     if request and _is_admin_session(request):
         hidden = ChatsOcultos.objects.filter(
             superadmin_cedula=SUPERADMIN_CEDULA
         ).values_list('conversation_key', flat=True)
 
+    messages = ChatMessage.objects.annotate(
+        conversation_rank=Window(
+            expression=RowNumber(),
+            partition_by=[F('conversation_key')],
+            order_by=[F('created_at').desc(), F('pk').desc()],
+        ),
+    ).filter(conversation_rank=1).select_related('cliente').order_by('conversation_key')
+    if hidden is not None:
+        messages = messages.exclude(conversation_key__in=hidden)
+
     for message in messages:
         conversation_key = message.conversation_key
-        
-        # Saltar conversaciones ocultas
-        if conversation_key in hidden:
-            continue
-            
         cliente = message.cliente
 
-        if conversation_key not in conversations:
-            conversations[conversation_key] = {
-                'conversation_key': conversation_key,
-                'cliente_id': cliente.cliente_id if cliente else None,
-                'client_name': _conversation_label(cliente) if cliente else conversation_key,
-                'client_summary': _client_summary(cliente) if cliente else conversation_key,
-                'cedula': cliente.cedula if cliente else conversation_key,
-                'patologia': cliente.patologia if cliente else None,  # 👈 PATOLOGÍA AGREGADA
-                'initials': _client_initials(cliente) if cliente else conversation_key[:2].upper(),
-                'avatar': _client_avatar(cliente) if cliente else '👤',
-                'last_time': _format_message_time(message.created_at),
-                'last_message': message.message,
-                'bloqueado': bool(cliente and cliente.bloqueado),
-                'messages': [],
-            }
-
-        conversations[conversation_key]['messages'].append({
-            'sender': message.sender,
-            'bubble_class': _message_bubble_class(message),
-            'sender_label': _message_sender_label(message),
-            'text': message.message,
-            'time': _format_message_time(message.created_at),
-        })
-        conversations[conversation_key]['last_time'] = _format_message_time(message.created_at)
-        conversations[conversation_key]['last_message'] = message.message
+        conversations[conversation_key] = {
+            'conversation_key': conversation_key,
+            'cliente_id': cliente.cliente_id if cliente else None,
+            'client_name': _conversation_label(cliente) if cliente else conversation_key,
+            'client_summary': _client_summary(cliente) if cliente else conversation_key,
+            'cedula': cliente.cedula if cliente else conversation_key,
+            'patologia': cliente.patologia if cliente else None,
+            'initials': _client_initials(cliente) if cliente else conversation_key[:2].upper(),
+            'avatar': _client_avatar(cliente) if cliente else '👤',
+            'last_time': _format_message_time(message.created_at),
+            'last_message': message.message,
+            'bloqueado': bool(cliente and cliente.bloqueado),
+            'messages': [],
+            'messages_loaded': False,
+            'has_more': False,
+        }
 
     return list(conversations.values())
 
@@ -651,6 +682,7 @@ def chat_view(request):
     conversation_key = request.session.get('conversation_key') or request.session.get('cliente_cedula') or ''
 
     cliente_nombre = request.session.get('cliente_nombre', 'Cliente')
+    chat_history, history_has_more = _get_chat_history(conversation_key)
     return render(request, 'chat/index.html', {
         'cliente_nombre': cliente_nombre,
         'cliente_cedula': request.session.get('cliente_cedula', ''),
@@ -659,9 +691,60 @@ def chat_view(request):
         'assistant_emoji': BOT_EMOJI,
         'last_activity': request.session.get('last_activity', timezone.now().timestamp()),
         'quick_commands': RAPID_COMMANDS,
-        'chat_history': _get_chat_history(conversation_key),
+        'chat_history': chat_history,
+        'history_has_more': history_has_more,
         'cliente_bloqueado': bool(cliente and cliente.bloqueado),
     })
+
+
+@require_GET
+def chat_history_view(request):
+    if request.session.get('user_type') != 'client':
+        return JsonResponse({'error': 'Debes iniciar sesión como cliente.'}, status=403)
+
+    before_id = request.GET.get('before_id')
+    if before_id is not None:
+        try:
+            before_id = int(before_id)
+        except ValueError:
+            return JsonResponse({'error': 'El cursor del historial no es válido.'}, status=400)
+        if before_id <= 0:
+            return JsonResponse({'error': 'El cursor del historial no es válido.'}, status=400)
+
+    conversation_key = (
+        request.session.get('conversation_key')
+        or request.session.get('cliente_cedula')
+        or ''
+    )
+    history, has_more = _get_message_page(conversation_key, before_id)
+    return JsonResponse({'messages': history, 'has_more': has_more})
+
+
+@require_GET
+def admin_conversation_history_view(request):
+    if not _is_admin_session(request):
+        return JsonResponse({'error': 'Debes iniciar sesión como administrador.'}, status=403)
+
+    conversation_key = request.GET.get('conversation_key', '')
+    if not conversation_key:
+        return JsonResponse({'error': 'La conversación solicitada no es válida.'}, status=400)
+    if ChatsOcultos.objects.filter(
+        superadmin_cedula=SUPERADMIN_CEDULA,
+        conversation_key=conversation_key,
+    ).exists():
+        return JsonResponse({'error': 'La conversación no está disponible.'}, status=404)
+
+    before_id = request.GET.get('before_id')
+    if before_id is not None:
+        try:
+            before_id = int(before_id)
+        except ValueError:
+            return JsonResponse({'error': 'El cursor del historial no es válido.'}, status=400)
+        if before_id <= 0:
+            return JsonResponse({'error': 'El cursor del historial no es válido.'}, status=400)
+
+    history, has_more = _get_message_page(conversation_key, before_id)
+    return JsonResponse({'messages': history, 'has_more': has_more})
 
 
 # ============================================
@@ -681,6 +764,11 @@ def _render_admin_dashboard(request, password_form=None, status=200):
         return redirect('chat:login')
     conversations = _build_conversations(request)
     active_conversation = conversations[0] if conversations else None
+    if active_conversation:
+        active_conversation['messages'], active_conversation['has_more'] = _get_message_page(
+            active_conversation['conversation_key'],
+        )
+        active_conversation['messages_loaded'] = True
 
     if password_form is None:
         password_form = SuperadminPasswordChangeForm(cliente=cliente)

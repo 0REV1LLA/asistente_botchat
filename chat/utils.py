@@ -1,6 +1,7 @@
 def buscar_productos(self, consulta):
     """Busca productos en tu BD existente con toda la información relacionada"""
-    from chat.models import Productos, Categorias
+    from django.db.models import Q
+    from chat.models import Productos
     
     palabras = consulta.lower().split()
     productos_relacionados = []
@@ -8,19 +9,12 @@ def buscar_productos(self, consulta):
     # Búsqueda en múltiples campos
     for palabra in palabras:
         productos = Productos.objects.filter(
-            nombre_producto__icontains=palabra
-        ) | Productos.objects.filter(
-            descripcion__icontains=palabra
-        ) | Productos.objects.filter(
-            marca__icontains=palabra
-        ) | Productos.objects.filter(
-            contenido__icontains=palabra
-        )
-        
-        # También buscar por categoría
-        categorias = Categorias.objects.filter(nombre_categoria__icontains=palabra)
-        for cat in categorias:
-            productos = productos | Productos.objects.filter(categoria=cat)
+            Q(nombre_producto__icontains=palabra)
+            | Q(descripcion__icontains=palabra)
+            | Q(marca__icontains=palabra)
+            | Q(contenido__icontains=palabra)
+            | Q(categoria__nombre_categoria__icontains=palabra)
+        ).select_related('categoria')
         
         productos_relacionados.extend(productos[:5])
     
