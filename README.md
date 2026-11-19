@@ -43,7 +43,7 @@ La ruta raíz redirige al acceso.
 
 La migración inicial crea cuentas de demostración:
 
-- Superadmin: `SuperAdminFarmaLuz`
+- Superadmin: `admin`
 - Cliente demo: `12345678`
 
 ## Base de datos
@@ -54,7 +54,7 @@ Si quieres usar MySQL, configura estas variables en `.env`:
 
 ```env
 DB_ENGINE=django.db.backends.mysql
-DB_NAME=inventario_farmaluz
+DB_NAME=base_de_datos
 DB_USER=root
 DB_PASSWORD=
 DB_HOST=localhost
