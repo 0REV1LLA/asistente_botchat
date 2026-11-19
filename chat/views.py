@@ -289,7 +289,7 @@ Escribe `ayuda` para ver todos los comandos rápidos."""
             if productos is None:
                 return _catalog_unavailable_message("Error en filtro de disponibilidad")
             if productos:
-                respuesta = f"📊 **STOCK DE '{producto_nombre}':**\n\n"
+                respuesta = f"📊 **DISPONIBILIDAD DE '{producto_nombre}':**\n\n"
                 for p in productos:
                     try:
                         stock_records = getattr(p, '_almacen_records', None)

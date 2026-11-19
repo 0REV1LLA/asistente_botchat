@@ -10,6 +10,23 @@ document.addEventListener('DOMContentLoaded', () => {
         [document.getElementById('adminReqSpecial'), value => /[!@#$%^&*(),.?":{}|<>]/.test(value)],
     ];
 
+    function setRequirementState(element, met) {
+        if (!element) return;
+        element.classList.toggle('requirement-met', met);
+        const icon = element.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('fa-circle', !met);
+            icon.classList.toggle('fa-circle-check', met);
+        }
+    }
+
+    function updatePasswordMatch() {
+        const matchRequirement = document.getElementById('adminReqMatch');
+        const met = Boolean(newPassword?.value && confirmPassword?.value)
+            && newPassword.value === confirmPassword.value;
+        setRequirementState(matchRequirement, met);
+    }
+
     document.querySelectorAll('[data-password-toggle]').forEach(button => {
         const input = document.getElementById(button.dataset.passwordToggle);
         const icon = button.querySelector('i');
@@ -21,20 +38,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    newPassword?.addEventListener('input', () => {
+    function updatePasswordRequirements() {
+        if (!newPassword) return;
         requirements.forEach(([element, isValid]) => {
-            if (!element) return;
-            const met = isValid(newPassword.value);
-            element.classList.toggle('requirement-met', met);
-            const icon = element.querySelector('i');
-            if (icon) {
-                icon.classList.toggle('fa-circle', !met);
-                icon.classList.toggle('fa-circle-check', met);
-            }
+            setRequirementState(element, isValid(newPassword.value));
         });
         confirmPassword?.setCustomValidity('');
-    });
-    confirmPassword?.addEventListener('input', () => confirmPassword.setCustomValidity(''));
+        updatePasswordMatch();
+    }
+
+    newPassword?.addEventListener('input', updatePasswordRequirements);
+    newPassword?.addEventListener('change', updatePasswordRequirements);
+    const updateConfirmation = () => {
+        confirmPassword?.setCustomValidity('');
+        updatePasswordMatch();
+    };
+    confirmPassword?.addEventListener('input', updateConfirmation);
+    confirmPassword?.addEventListener('change', updateConfirmation);
 
     form?.addEventListener('submit', event => {
         if (newPassword && confirmPassword && newPassword.value !== confirmPassword.value) {

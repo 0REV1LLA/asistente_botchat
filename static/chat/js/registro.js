@@ -46,23 +46,40 @@ document.addEventListener('DOMContentLoaded', () => {
         [document.getElementById('reqSpecial'), value => /[!@#$%^&*(),.?":{}|<>]/.test(value)],
     ];
 
+    function setRequirementState(element, met) {
+        if (!element) return;
+        element.classList.toggle('requirement-met', met);
+        const icon = element.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('fa-circle', !met);
+            icon.classList.toggle('fa-circle-check', met);
+        }
+    }
+
+    function updatePasswordMatch() {
+        const matchRequirement = document.getElementById('reqMatch');
+        const met = Boolean(password?.value && confirmPassword?.value)
+            && password.value === confirmPassword.value;
+        setRequirementState(matchRequirement, met);
+    }
+
     function updatePasswordRequirements() {
         if (!password) return;
         requirements.forEach(([element, isValid]) => {
-            if (!element) return;
-            const met = isValid(password.value);
-            element.classList.toggle('requirement-met', met);
-            const icon = element.querySelector('i');
-            if (icon) {
-                icon.classList.toggle('fa-circle', !met);
-                icon.classList.toggle('fa-circle-check', met);
-            }
+            setRequirementState(element, isValid(password.value));
         });
         if (confirmPassword) confirmPassword.setCustomValidity('');
+        updatePasswordMatch();
     }
 
     password?.addEventListener('input', updatePasswordRequirements);
-    confirmPassword?.addEventListener('input', () => confirmPassword.setCustomValidity(''));
+    password?.addEventListener('change', updatePasswordRequirements);
+    const updateConfirmation = () => {
+        confirmPassword?.setCustomValidity('');
+        updatePasswordMatch();
+    };
+    confirmPassword?.addEventListener('input', updateConfirmation);
+    confirmPassword?.addEventListener('change', updateConfirmation);
 
     function setupPasswordToggle(buttonId, inputId, iconId) {
         const button = document.getElementById(buttonId);

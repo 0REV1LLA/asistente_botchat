@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import date
+from pathlib import Path
 
 from captcha.models import CaptchaStore
 from django.contrib.auth.hashers import check_password, make_password
@@ -116,8 +117,10 @@ class SuperadminPasswordChangeTests(TestCase):
             'adminReqLowercase',
             'adminReqNumber',
             'adminReqSpecial',
+            'adminReqMatch',
         ):
             self.assertIn(requirement_id, content)
+        self.assertIn('Las contraseñas coinciden', content)
         self.assertIn('chat/js/admin_password_change.js', content)
         self.assertNotRegex(content, r'\sstyle\s*=')
 
@@ -225,9 +228,30 @@ class ProductStockQueryTests(TestCase):
         with self.assertNumQueries(2):
             response = ChatBotFarmaluz().procesar_mensaje('disponible analgesico')
 
+        self.assertIn("📊 **DISPONIBILIDAD DE 'analgesico':**", response)
         self.assertIn('Disponible (12 unidades)', response)
         self.assertIn('Cantidad baja (4 unidades)', response)
         self.assertIn('Agotado', response)
+
+
+class PasswordMatchRequirementTests(TestCase):
+    def test_registration_renders_password_match_requirement(self):
+        response = self.client.get(reverse('chat:registro'))
+        content = response.content.decode()
+
+        self.assertContains(response, 'id="reqMatch"')
+        self.assertIn('Las contraseñas coinciden', content)
+
+    def test_password_match_validation_listens_to_input_and_change(self):
+        for script in (
+            'chat/static/chat/js/registro.js',
+            'chat/static/chat/js/password_reset_confirm.js',
+            'chat/static/chat/js/admin_password_change.js',
+        ):
+            with self.subTest(script=script):
+                content = (Path(__file__).resolve().parent.parent / script).read_text(encoding='utf-8')
+                self.assertIn("addEventListener('input', updateConfirmation)", content)
+                self.assertIn("addEventListener('change', updateConfirmation)", content)
 
 
 class PasswordResetConfirmationTests(TestCase):
@@ -251,6 +275,7 @@ class PasswordResetConfirmationTests(TestCase):
             confirm_page.content.decode().count('class="input-wrap password-input-wrap"'),
             2,
         )
+        self.assertContains(confirm_page, 'id="reqMatch"')
         self.assertNotRegex(confirm_page.content.decode(), r'\sstyle\s*=')
 
         response = self.client.post(
