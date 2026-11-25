@@ -53,7 +53,7 @@ PASSWORD_RESET_SESSION_KEY = 'password_reset_request'
 PASSWORD_RESET_MAX_AGE = 60 * 60 * 24  # 24 horas
 
 RAPID_COMMANDS = [
-    ('productos', 'Ver la lista de productos'),
+    ('productos', 'Ver y filtrar productos por categoría, compuesto u otros atributos'),
     ('precio NOMBRE', 'Consultar el precio de un producto'),
     ('disponible NOMBRE', 'Ver disponibilidad en inventario'),
     ('buscar NOMBRE', 'Buscar datos detallados de un producto'),
@@ -506,10 +506,16 @@ def _not_found_response(query):
             "puedes filtrar el catálogo por categoría o compuesto."
         )
     lines = [f"No encontré '{query}'. Estas alternativas similares sí están disponibles:"]
-    for product in suggestions:
-        compound = product.compuesto or 'Compuesto no especificado'
-        lines.append(f"• {product.nombre_producto} — {compound} ({_product_stock_quantity(product)} unidades)")
+    lines.extend(_format_suggestion_lines(suggestions))
     return '\n'.join(lines)
+
+
+def _format_suggestion_lines(products):
+    return [
+        f"• {product.nombre_producto} — {product.compuesto or 'Compuesto no especificado'} "
+        f"({_product_stock_quantity(product)} unidades)"
+        for product in products
+    ]
 
 
 class ChatBotFarmaluz:
@@ -590,6 +596,11 @@ class ChatBotFarmaluz:
             lines.append(f'• {product.nombre_producto}: {status}')
             if product.requiere_recipe:
                 lines.append('  ⚠️ Requiere récipe/prescripción médica; tenlo a la mano.')
+        if not any(_product_stock_quantity(product) > 0 for product in products):
+            suggestions = _suggest_available_products(query)
+            if suggestions:
+                lines.extend(['', 'Alternativas similares disponibles:'])
+                lines.extend(_format_suggestion_lines(suggestions))
         return '\n'.join(lines)
 
     def _details(self, query):
@@ -1237,7 +1248,7 @@ def enviar_mensaje(request):
                 conversation_key=conversation_key
             ).delete()
 
-            ChatMessage.objects.create(
+            client_message = ChatMessage.objects.create(
                 cliente=cliente,
                 conversation_key=conversation_key,
                 sender=ChatMessage.Sender.CLIENT,
@@ -1245,7 +1256,7 @@ def enviar_mensaje(request):
             )
             
             respuesta = bot.procesar_mensaje(mensaje)
-            ChatMessage.objects.create(
+            bot_message = ChatMessage.objects.create(
                 cliente=cliente,
                 conversation_key=conversation_key,
                 sender=ChatMessage.Sender.BOT,
@@ -1254,6 +1265,8 @@ def enviar_mensaje(request):
             
             return JsonResponse({
                 'respuesta': respuesta,
+                'client_time': _format_message_time(client_message.created_at),
+                'response_time': _format_message_time(bot_message.created_at),
                 'success': True
             })
         except Exception as e:

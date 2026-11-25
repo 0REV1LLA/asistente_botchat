@@ -7,6 +7,13 @@ function escapeHtml(value) {
         .replace(/'/g, '&#039;');
 }
 
+function formatMessageTime(date = new Date()) {
+    const hours = date.getHours();
+    const hour12 = hours % 12 || 12;
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${String(hour12).padStart(2, '0')}:${minutes} ${hours >= 12 ? 'PM' : 'AM'}`;
+}
+
 function createMessageElement(text, sender, time = '', id = null) {
     const div = document.createElement('div');
     div.className = `message ${sender}`;
@@ -20,11 +27,13 @@ function createMessageElement(text, sender, time = '', id = null) {
     return div;
 }
 
-function renderMessage(text, sender, time = '', id = null) {
+function renderMessage(text, sender, time = formatMessageTime(), id = null) {
     const messages = document.getElementById('messages');
-    messages.appendChild(createMessageElement(text, sender, time, id));
+    const messageElement = createMessageElement(text, sender, time, id);
+    messages.appendChild(messageElement);
     messages.scrollTop = messages.scrollHeight;
     updateScrollButton();
+    return messageElement;
 }
 
 let hasOlderHistory = false;
@@ -169,7 +178,7 @@ async function sendMessage() {
     const message = input.value.trim();
     if (!message) return;
 
-    renderMessage(message, 'user');
+    const clientMessage = renderMessage(message, 'user');
     input.value = '';
     scrollToBottom();
 
@@ -195,7 +204,11 @@ async function sendMessage() {
         typingDiv.remove();
 
         if (data.success) {
-            renderMessage(data.respuesta, 'bot');
+            const clientTime = clientMessage.querySelector('.msg-time');
+            if (clientTime && data.client_time) {
+                clientTime.textContent = data.client_time;
+            }
+            renderMessage(data.respuesta, 'bot', data.response_time || formatMessageTime());
         } else if (data.blocked) {
             renderMessage('Usuario bloqueado', 'bot');
         } else {

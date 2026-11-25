@@ -258,6 +258,10 @@ class ChatHistoryPaginationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context['chat_history']), 50)
         self.assertTrue(response.context['history_has_more'])
+        self.assertIn(
+            ('productos', 'Ver y filtrar productos por categoría, compuesto u otros atributos'),
+            response.context['quick_commands'],
+        )
 
         oldest_initial_id = response.context['chat_history'][0]['id']
         older_response = self.client.get(
@@ -273,6 +277,19 @@ class ChatHistoryPaginationTests(TestCase):
             self.message_ids[:5],
         )
         self.assertFalse(older_response.json()['has_more'])
+
+    def test_new_messages_return_am_pm_times_for_client_and_bot(self):
+        self._set_client_session()
+        response = self.client.post(
+            reverse('chat:enviar_mensaje'),
+            data=json.dumps({'mensaje': 'hola'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertRegex(payload['client_time'], r'^\d{2}:\d{2} (AM|PM)$')
+        self.assertRegex(payload['response_time'], r'^\d{2}:\d{2} (AM|PM)$')
 
     def test_chat_history_endpoint_requires_client_session(self):
         response = self.client.get(reverse('chat:chat_history'))
@@ -375,6 +392,37 @@ class ProductStockQueryTests(TestCase):
         self.assertIn('Compuesto: Ibuprofeno', detail)
         self.assertIn('Requiere récipe/prescripción: Sí', detail)
         self.assertIn('Requiere récipe/prescripción médica; tenlo a la mano.', availability)
+        self.assertNotIn('alternativas similares', detail.lower())
+        self.assertNotIn('alternativas similares', availability.lower())
+
+    def test_availability_suggests_only_when_matching_products_are_out_of_stock(self):
+        out_of_stock = Productos.objects.create(
+            nombre_producto='Ibuprofeno',
+            descripcion='',
+            contenido='Tabletas',
+            marca='',
+            tiene_iva=False,
+        )
+        alternative = Productos.objects.create(
+            nombre_producto='Ibuprofena',
+            descripcion='',
+            contenido='Tabletas',
+            marca='',
+            tiene_iva=False,
+        )
+        Almacen.objects.create(id_producto=out_of_stock, cantidad=0)
+        Almacen.objects.create(id_producto=alternative, cantidad=8)
+
+        from .views import ChatBotFarmaluz
+        chatbot = ChatBotFarmaluz()
+
+        detail = chatbot.procesar_mensaje('buscar ibuprofeno')
+        availability = chatbot.procesar_mensaje('disponible ibuprofeno')
+
+        self.assertNotIn('alternativas similares', detail.lower())
+        self.assertIn('Agotado', availability)
+        self.assertIn('Alternativas similares disponibles:', availability)
+        self.assertIn('Ibuprofena', availability)
 
     def test_product_list_filters_by_category_and_limits_unfiltered_results(self):
         category = Categorias.objects.create(nombre_categoria='Analgésicos')
