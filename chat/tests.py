@@ -146,9 +146,34 @@ class SuperadminPasswordChangeTests(TestCase):
         self.assertRedirects(response, reverse('chat:admin_dashboard'))
         self.cliente.refresh_from_db()
         self.assertTrue(check_password('New-SuperAdmin-Password-2!', self.cliente.password))
-        self.assertTrue(BitacoraSuperadmin.objects.filter(
+        audit_entry = BitacoraSuperadmin.objects.get(
+            action_type=BitacoraSuperadmin.Action.PASSWORD_CHANGE,
+        )
+        self.assertEqual(audit_entry.superadmin_cedula, self.cliente.cedula)
+        self.assertEqual(
+            audit_entry.detail,
+            'El superadministrador actualizó su contraseña.',
+        )
+        self.assertIsNotNone(audit_entry.created_at)
+        for password in (
+            'Old-SuperAdmin-Password-1',
+            'New-SuperAdmin-Password-2!',
+        ):
+            self.assertNotIn(password, audit_entry.detail)
+
+    def test_failed_password_change_does_not_create_audit_entry_or_change_password(self):
+        response = self.client.post(reverse('chat:superadmin_password_change'), {
+            'current_password': 'Wrong-SuperAdmin-Password-1',
+            'new_password': 'New-SuperAdmin-Password-2!',
+            'confirm_password': 'New-SuperAdmin-Password-2!',
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(BitacoraSuperadmin.objects.filter(
             action_type=BitacoraSuperadmin.Action.PASSWORD_CHANGE,
         ).exists())
+        self.cliente.refresh_from_db()
+        self.assertTrue(check_password('Old-SuperAdmin-Password-1', self.cliente.password))
 
     def test_password_change_modal_has_toggle_controls_and_live_requirements(self):
         response = self.client.get(reverse('chat:admin_dashboard'))

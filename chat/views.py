@@ -11,6 +11,7 @@ from difflib import SequenceMatcher
 from django.conf import settings
 from django.core import signing
 from django.core.mail import EmailMultiAlternatives
+from django.db import transaction
 from django.db.models import F, Prefetch, Q, Window
 from django.db.models.functions import RowNumber
 from django.http import JsonResponse
@@ -1162,12 +1163,13 @@ def superadmin_password_change_view(request):
     if not form.is_valid():
         return _render_admin_dashboard(request, password_form=form, status=400)
 
-    cliente.password = make_password(form.cleaned_data['new_password'])
-    cliente.save(update_fields=['password'])
-    _record_superadmin_action(
-        BitacoraSuperadmin.Action.PASSWORD_CHANGE,
-        'El superadministrador actualizó su contraseña.',
-    )
+    with transaction.atomic():
+        cliente.password = make_password(form.cleaned_data['new_password'])
+        cliente.save(update_fields=['password'])
+        _record_superadmin_action(
+            BitacoraSuperadmin.Action.PASSWORD_CHANGE,
+            'El superadministrador actualizó su contraseña.',
+        )
     messages.success(request, 'La contraseña del superadministrador se actualizó correctamente.')
     return redirect('chat:admin_dashboard')
 
