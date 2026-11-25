@@ -30,6 +30,9 @@ def buscar_productos(self, consulta):
             "marca": p.marca,
             "precio": f"${p.precio_venta:,.2f}" if p.precio_venta else "Consultar precio",
             "contenido": p.contenido,
+            "compuesto": p.compuesto or "No especificado",
+            "requiere_recipe": p.requiere_recipe,
+            "requiere_recipe_display": "Sí" if p.requiere_recipe else "No",
             "codigo": p.codigo,
             "tiene_iva": "Sí" if p.tiene_iva else "No",
         }

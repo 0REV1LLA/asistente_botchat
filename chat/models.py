@@ -140,6 +140,8 @@ class Productos(models.Model):
     sub_categorias_nivel_1 = models.ForeignKey(SubCategoriasNivel1, on_delete=models.SET_NULL, db_column='sub_categorias_nivel_1', blank=True, null=True)
     tiene_iva = models.BooleanField(null=True)
     sub_categorias_nivel_2 = models.ForeignKey(SubCategoriasNivel2, on_delete=models.SET_NULL, db_column='sub_categorias_nivel_2', blank=True, null=True)
+    requiere_recipe = models.BooleanField(default=False)
+    compuesto = models.TextField(blank=True, default='')
 
     def tiene_iva_display(self):
         return 'Sí' if self.tiene_iva else 'No'
@@ -150,6 +152,29 @@ class Productos(models.Model):
     class Meta:
         managed = True  # ¡IMPORTANTE!
         db_table = 'productos'
+
+
+class BitacoraSuperadmin(models.Model):
+    class Action(models.TextChoices):
+        LOGIN = 'login', 'Inicio de sesión'
+        LOGOUT = 'logout', 'Cierre de sesión'
+        BLOCK = 'block', 'Bloqueo de usuario'
+        UNBLOCK = 'unblock', 'Desbloqueo de usuario'
+        HIDE_CHAT = 'hide_chat', 'Ocultar conversación'
+        PASSWORD_CHANGE = 'password_change', 'Cambio de contraseña'
+
+    superadmin_cedula = models.CharField(max_length=50)
+    action_type = models.CharField(max_length=32, choices=Action.choices)
+    detail = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'bitacora_superadmin'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.superadmin_cedula} - {self.get_action_type_display()} - {self.created_at}'
+
 
 class Almacen(models.Model):
     id = models.AutoField(primary_key=True)

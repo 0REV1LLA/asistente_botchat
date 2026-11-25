@@ -158,7 +158,7 @@
                         <span>Fecha de nacimiento</span>
                         <div class="input-wrap">
                             <i class="fa-solid fa-cake-candles"></i>
-                            <input type="date" name="fecha_nacimiento" value="{{ form_values.fecha_nacimiento|default:'' }}" required>
+                            <input type="date" name="fecha_nacimiento" value="{{ form_values.fecha_nacimiento|default:'' }}" max="{{ latest_eligible_birth_date|date:'Y-m-d' }}" required>
                         </div>
                     </label>
                     <label class="field field-full">

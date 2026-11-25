@@ -2,6 +2,9 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
 
+from .constants import SUPERADMIN_CEDULA
+from .models import BitacoraSuperadmin
+
 
 INACTIVITY_WARNING_SECONDS = 8 * 60
 INACTIVITY_GRACE_SECONDS = 30
@@ -22,6 +25,12 @@ class CustomSessionTimeoutMiddleware:
             elapsed = max(0, now - last_activity)
 
             if elapsed >= INACTIVITY_WARNING_SECONDS + INACTIVITY_GRACE_SECONDS:
+                if user_type == 'admin' and session.get('cliente_cedula') == SUPERADMIN_CEDULA:
+                    BitacoraSuperadmin.objects.create(
+                        superadmin_cedula=SUPERADMIN_CEDULA,
+                        action_type=BitacoraSuperadmin.Action.LOGOUT,
+                        detail='Cierre de sesión del superadministrador por inactividad.',
+                    )
                 session.flush()
                 return redirect(f"{reverse('chat:login')}?expired=1")
 

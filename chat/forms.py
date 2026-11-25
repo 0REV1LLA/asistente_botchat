@@ -3,9 +3,18 @@ import re
 from captcha.fields import CaptchaField
 from django import forms
 from django.contrib.auth.hashers import check_password
+from django.utils import timezone
 
 from .constants import SUPERADMIN_CEDULA
 from .models import Clientes
+
+
+def latest_eligible_birth_date(today=None):
+    today = today or timezone.localdate()
+    try:
+        return today.replace(year=today.year - 18)
+    except ValueError:
+        return today.replace(year=today.year - 18, day=28)
 
 
 def validate_strong_password(password):
@@ -76,6 +85,12 @@ class RegistrationForm(forms.Form):
         if Clientes.objects.filter(correo__iexact=correo).exists():
             raise forms.ValidationError('Este correo electrónico ya está registrado.')
         return correo
+
+    def clean_fecha_nacimiento(self):
+        fecha_nacimiento = self.cleaned_data['fecha_nacimiento']
+        if fecha_nacimiento > latest_eligible_birth_date():
+            raise forms.ValidationError('Debes tener al menos 18 años para registrarte.')
+        return fecha_nacimiento
 
     def clean_password(self):
         return validate_strong_password(self.cleaned_data['password'])

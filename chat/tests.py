@@ -1,15 +1,24 @@
 import json
 import re
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from captcha.models import CaptchaStore
+from django.contrib import admin
 from django.contrib.auth.hashers import check_password, make_password
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Almacen, ChatMessage, Clientes, Productos
+from .models import (
+    Almacen,
+    BitacoraSuperadmin,
+    Categorias,
+    ChatMessage,
+    Clientes,
+    Productos,
+)
+from .forms import latest_eligible_birth_date
 
 
 def captcha_response():
@@ -33,6 +42,10 @@ class SuperadminLoginTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse('chat:admin_dashboard'))
+        self.assertTrue(BitacoraSuperadmin.objects.filter(
+            action_type=BitacoraSuperadmin.Action.LOGIN,
+            superadmin_cedula='SuperAdminFarmaLuz',
+        ).exists())
 
 
 class ClienteRegistrationTests(TestCase):
@@ -80,6 +93,35 @@ class ClienteRegistrationTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertFalse(Clientes.objects.filter(cedula='12345678').exists())
 
+    def test_registration_rejects_birth_dates_under_18(self):
+        too_recent = latest_eligible_birth_date() + timedelta(days=1)
+        response = self.client.post(reverse('chat:registro'), {
+            'nombre': 'Ana',
+            'apellido': 'Pérez',
+            'cedula': '12345678',
+            'correo': 'ana@correo.com',
+            'patologia': 'diabetes',
+            'genero': 'mujer',
+            'direccion': 'Calle 1',
+            'n_telefono': '04121234567',
+            'fecha_nacimiento': too_recent.isoformat(),
+            'password': 'StrongRegistrationPassword123!',
+            'confirm_password': 'StrongRegistrationPassword123!',
+            'accept_terms': 'on',
+            **captcha_response(),
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, 'Debes tener al menos 18 años para registrarte.', status_code=400)
+        self.assertFalse(Clientes.objects.filter(cedula='12345678').exists())
+
+    def test_registration_date_input_has_dynamic_age_limit(self):
+        response = self.client.get(reverse('chat:registro'))
+        self.assertContains(
+            response,
+            f'max="{latest_eligible_birth_date().isoformat()}"',
+        )
+
 
 class SuperadminPasswordChangeTests(TestCase):
     def setUp(self):
@@ -104,6 +146,9 @@ class SuperadminPasswordChangeTests(TestCase):
         self.assertRedirects(response, reverse('chat:admin_dashboard'))
         self.cliente.refresh_from_db()
         self.assertTrue(check_password('New-SuperAdmin-Password-2!', self.cliente.password))
+        self.assertTrue(BitacoraSuperadmin.objects.filter(
+            action_type=BitacoraSuperadmin.Action.PASSWORD_CHANGE,
+        ).exists())
 
     def test_password_change_modal_has_toggle_controls_and_live_requirements(self):
         response = self.client.get(reverse('chat:admin_dashboard'))
@@ -123,6 +168,61 @@ class SuperadminPasswordChangeTests(TestCase):
         self.assertIn('Las contraseñas coinciden', content)
         self.assertIn('chat/js/admin_password_change.js', content)
         self.assertNotRegex(content, r'\sstyle\s*=')
+
+
+class SuperadminAuditTests(TestCase):
+    def setUp(self):
+        self.admin = Clientes.objects.create(
+            cedula='SuperAdminFarmaLuz',
+            password=make_password('Admin-Password-1!'),
+        )
+        self.cliente = Clientes.objects.create(
+            cedula='12345678',
+            nombre='Ana',
+            apellido='Pérez',
+            password=make_password('Client-Password-1!'),
+        )
+        session = self.client.session
+        session['user_type'] = 'admin'
+        session['cliente_id'] = self.admin.cliente_id
+        session['cliente_cedula'] = self.admin.cedula
+        session['last_activity'] = timezone.now().timestamp()
+        session.save()
+
+    def test_blocking_chat_hide_and_logout_are_audited(self):
+        self.client.get(reverse('chat:toggle_bloqueo_cliente', args=[self.cliente.cliente_id]))
+        self.client.get(reverse('chat:toggle_bloqueo_cliente', args=[self.cliente.cliente_id]))
+        hide_response = self.client.post(
+            reverse('chat:borrar_conversacion'),
+            data=json.dumps({'conversation_key': self.cliente.cedula}),
+            content_type='application/json',
+        )
+        logout_response = self.client.get(reverse('chat:logout'))
+
+        self.assertEqual(hide_response.status_code, 200)
+        self.assertEqual(logout_response.status_code, 302)
+        self.assertEqual(
+            BitacoraSuperadmin.objects.filter(action_type=BitacoraSuperadmin.Action.BLOCK).count(),
+            1,
+        )
+        self.assertEqual(
+            BitacoraSuperadmin.objects.filter(action_type=BitacoraSuperadmin.Action.UNBLOCK).count(),
+            1,
+        )
+        self.assertTrue(BitacoraSuperadmin.objects.filter(
+            action_type=BitacoraSuperadmin.Action.BLOCK,
+            detail__contains=self.cliente.cedula,
+        ).exists())
+        chat_audit = BitacoraSuperadmin.objects.get(
+            action_type=BitacoraSuperadmin.Action.HIDE_CHAT,
+        )
+        self.assertIn(self.cliente.cedula, chat_audit.detail)
+        self.assertIsNotNone(chat_audit.created_at)
+        self.assertTrue(
+            BitacoraSuperadmin.objects.filter(
+                action_type=BitacoraSuperadmin.Action.LOGOUT,
+            ).exists()
+        )
 
 
 class ChatHistoryPaginationTests(TestCase):
@@ -211,7 +311,28 @@ class ChatHistoryPaginationTests(TestCase):
         self.assertFalse(older_response.json()['has_more'])
 
 
+class MessageTimeFormatTests(TestCase):
+    def test_serialized_message_time_uses_twelve_hour_am_pm_format(self):
+        from .views import _serialize_message
+
+        cliente = Clientes.objects.create(cedula='12345678')
+        message = ChatMessage.objects.create(
+            conversation_key=cliente.cedula,
+            cliente=cliente,
+            sender=ChatMessage.Sender.CLIENT,
+            message='Consulta',
+        )
+
+        self.assertRegex(_serialize_message(message)['time'], r'^\d{2}:\d{2} (AM|PM)$')
+
+
 class ProductStockQueryTests(TestCase):
+    def test_product_admin_form_exposes_new_product_attributes(self):
+        self.assertIn(Productos, admin.site._registry)
+        admin_form = admin.site._registry[Productos].get_form(None)
+        self.assertIn('compuesto', admin_form.base_fields)
+        self.assertIn('requiere_recipe', admin_form.base_fields)
+
     def test_stock_command_prefetches_inventory_for_all_limited_products(self):
         for index, quantity in enumerate((12, 4, 0)):
             product = Productos.objects.create(
@@ -232,6 +353,122 @@ class ProductStockQueryTests(TestCase):
         self.assertIn('Disponible (12 unidades)', response)
         self.assertIn('Cantidad baja (4 unidades)', response)
         self.assertIn('Agotado', response)
+
+    def test_product_prescription_and_compound_are_in_details_and_availability(self):
+        product = Productos.objects.create(
+            nombre_producto='Ibuprofeno',
+            descripcion='Analgésico',
+            contenido='Tabletas 400 mg',
+            marca='FarmaLuz',
+            tiene_iva=False,
+            requiere_recipe=True,
+            compuesto='Ibuprofeno',
+        )
+        Almacen.objects.create(id_producto=product, cantidad=12)
+
+        from .views import ChatBotFarmaluz
+        chatbot = ChatBotFarmaluz()
+
+        detail = chatbot.procesar_mensaje('buscar ibuprofeno')
+        availability = chatbot.procesar_mensaje('disponibilidad de ibuprofeno')
+
+        self.assertIn('Compuesto: Ibuprofeno', detail)
+        self.assertIn('Requiere récipe/prescripción: Sí', detail)
+        self.assertIn('Requiere récipe/prescripción médica; tenlo a la mano.', availability)
+
+    def test_product_list_filters_by_category_and_limits_unfiltered_results(self):
+        category = Categorias.objects.create(nombre_categoria='Analgésicos')
+        Productos.objects.create(
+            nombre_producto='Ibuprofeno',
+            descripcion='',
+            contenido='Tabletas',
+            marca='FarmaLuz',
+            tiene_iva=False,
+            categoria=category,
+            compuesto='Ibuprofeno',
+        )
+        ibuprofeno = Productos.objects.get(nombre_producto='Ibuprofeno')
+        Almacen.objects.create(id_producto=ibuprofeno, cantidad=12)
+        for index in range(16):
+            Productos.objects.create(
+                nombre_producto=f'Producto {index:02d}',
+                descripcion='',
+                contenido='',
+                marca='',
+                tiene_iva=False,
+            )
+
+        from .views import ChatBotFarmaluz
+        chatbot = ChatBotFarmaluz()
+        filtered = chatbot.procesar_mensaje('productos categoria analgesicos')
+        unfiltered = chatbot.procesar_mensaje('productos')
+        singular = chatbot.procesar_mensaje('producto')
+        natural_available = chatbot.procesar_mensaje('ensename productos disponibles')
+        stock_filtered = chatbot.procesar_mensaje('productos stock')
+        out_of_stock = chatbot.procesar_mensaje('productos sin stock')
+
+        self.assertIn('Ibuprofeno', filtered)
+        self.assertNotIn('Producto 00', filtered)
+        self.assertIn('Mostrando 15 de 17 resultados', unfiltered)
+        self.assertIn('Refina con nombre, categoría, compuesto', unfiltered)
+        self.assertIn('LISTA DE PRODUCTOS', singular)
+        self.assertIn('Ibuprofeno', natural_available)
+        self.assertNotIn('Producto 00', natural_available)
+        self.assertIn('Ibuprofeno', stock_filtered)
+        self.assertNotIn('Producto 00', stock_filtered)
+        self.assertNotIn('Ibuprofeno', out_of_stock)
+
+    def test_product_list_filters_by_compound_and_prescription(self):
+        Productos.objects.create(
+            nombre_producto='Antibiotico A',
+            descripcion='',
+            contenido='Capsulas',
+            marca='',
+            tiene_iva=False,
+            requiere_recipe=True,
+            compuesto='Amoxicilina',
+        )
+        Productos.objects.create(
+            nombre_producto='Antibiotico B',
+            descripcion='',
+            contenido='Jarabe',
+            marca='',
+            tiene_iva=False,
+            requiere_recipe=False,
+            compuesto='Amoxicilina',
+        )
+
+        from .views import ChatBotFarmaluz
+        response = ChatBotFarmaluz().procesar_mensaje(
+            'productos compuesto amoxicilina con receta',
+        )
+
+        self.assertIn('Antibiotico A', response)
+        self.assertNotIn('Antibiotico B', response)
+
+    def test_bot_accepts_natural_price_queries_and_suggests_available_matches(self):
+        product = Productos.objects.create(
+            nombre_producto='Ibuprofeno',
+            descripcion='',
+            contenido='Tabletas',
+            marca='',
+            tiene_iva=False,
+            compuesto='Ibuprofeno',
+            precio_venta='5.00',
+        )
+        Almacen.objects.create(id_producto=product, cantidad=8)
+        from .views import ChatBotFarmaluz
+        chatbot = ChatBotFarmaluz()
+
+        natural_query = chatbot.procesar_mensaje('dame el precio del ibuprofeno')
+        conversational_query = chatbot.procesar_mensaje('me puedes decir si hay ibuprofeno')
+        miss_query = chatbot.procesar_mensaje('buscar ibuprofena')
+
+        self.assertIn('Ibuprofeno: $5.00', natural_query)
+        self.assertIn("📊 **DISPONIBILIDAD DE 'ibuprofeno':**", conversational_query)
+        self.assertIn('Cantidad baja (8 unidades)', conversational_query)
+        self.assertIn('alternativas similares sí están disponibles', miss_query)
+        self.assertIn('Ibuprofeno', miss_query)
 
 
 class PasswordMatchRequirementTests(TestCase):
@@ -323,6 +560,26 @@ class SessionTimeoutTests(TestCase):
 
         self.assertRedirects(response, f"{reverse('chat:login')}?expired=1")
         self.assertNotIn('user_type', self.client.session)
+
+    def test_expired_superadmin_session_is_audited(self):
+        admin = Clientes.objects.create(
+            cedula='SuperAdminFarmaLuz',
+            password=make_password('Admin-Password-1!'),
+        )
+        session = self.client.session
+        session['user_type'] = 'admin'
+        session['cliente_id'] = admin.cliente_id
+        session['cliente_cedula'] = admin.cedula
+        session['last_activity'] = timezone.now().timestamp() - 520
+        session.save()
+
+        response = self.client.get(reverse('chat:admin_dashboard'))
+
+        self.assertRedirects(response, f"{reverse('chat:login')}?expired=1")
+        self.assertTrue(BitacoraSuperadmin.objects.filter(
+            action_type=BitacoraSuperadmin.Action.LOGOUT,
+            detail__contains='inactividad',
+        ).exists())
 
 
 class AuthTemplateSecurityTests(TestCase):

@@ -4,6 +4,22 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
+def create_missing_catalog_tables(apps, schema_editor):
+    existing_tables = set(schema_editor.connection.introspection.table_names())
+    catalog_models = (
+        'Categorias',
+        'Productos',
+        'SubCategoriasNivel1',
+        'SubCategoriasNivel2',
+        'Almacen',
+    )
+    for model_name in catalog_models:
+        model = apps.get_model('chat', model_name)
+        if model._meta.db_table not in existing_tables:
+            schema_editor.create_model(model)
+            existing_tables.add(model._meta.db_table)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -11,6 +27,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(create_missing_catalog_tables, migrations.RunPython.noop),
         migrations.AddField(
             model_name='almacen',
             name='id_producto',

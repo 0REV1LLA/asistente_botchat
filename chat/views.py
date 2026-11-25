@@ -2,13 +2,16 @@ import json
 import secrets
 import traceback
 import binascii
+import re
+import unicodedata
 from collections import OrderedDict
 from datetime import timedelta
+from difflib import SequenceMatcher
 
 from django.conf import settings
 from django.core import signing
 from django.core.mail import EmailMultiAlternatives
-from django.db.models import F, Prefetch, Window
+from django.db.models import F, Prefetch, Q, Window
 from django.db.models.functions import RowNumber
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
@@ -32,8 +35,16 @@ from .forms import (
     PasswordResetRequestForm,
     RegistrationForm,
     SuperadminPasswordChangeForm,
+    latest_eligible_birth_date,
 )
-from .models import Almacen, ChatMessage, Clientes, Productos, ChatsOcultos
+from .models import (
+    Almacen,
+    BitacoraSuperadmin,
+    ChatMessage,
+    Clientes,
+    Productos,
+    ChatsOcultos,
+)
 
 #Configuraciones generales
 BOT_NAME = 'Lucy'
@@ -75,6 +86,14 @@ def _safe_product_list(queryset, limit=None, with_stock=False):
         print(str(e))
         print(f"----------------------------------------------")
         return None
+
+
+def _record_superadmin_action(action_type, detail):
+    BitacoraSuperadmin.objects.create(
+        superadmin_cedula=SUPERADMIN_CEDULA,
+        action_type=action_type,
+        detail=detail,
+    )
 
 
 #configuracion de datos de admin
@@ -229,140 +248,447 @@ def _send_reset_email(cliente, reset_url):
         raise
 
 #viista para el chat con el bot
-class ChatBotFarmaluz:
-    def procesar_mensaje(self, mensaje):
-        mensaje = mensaje.lower().strip()
+PRODUCT_LIST_LIMIT = 15
+SUGGESTION_SCAN_LIMIT = 500
+PRODUCT_QUERY_STOP_WORDS = {
+    'a', 'al', 'algun', 'alguna', 'algunos', 'algunas', 'como', 'con', 'cual',
+    'de', 'del', 'el', 'ella', 'en', 'es', 'esta', 'este', 'hay', 'la', 'las',
+    'los', 'me', 'mi', 'necesito', 'para', 'por', 'que', 'quiero', 'un', 'una',
+    'uno', 'unos', 'unas', 'favor', 'producto', 'productos', 'medicamento',
+    'medicamentos', 'farmaco', 'farmacos', 'buscar', 'busca', 'precio',
+    'cuesta', 'cuanto', 'vale', 'disponible', 'disponibilidad', 'stock',
+    'informacion', 'info', 'detalle', 'detalles', 'sobre', 'tienen', 'tiene',
+    'dime', 'dame', 'muestrame', 'mostrar', 'ver', 'lista', 'listar', 'catalogo',
+    'quisiera', 'consultar', 'consulta', 'consultame', 'podrias', 'decirme',
+    'decir', 'deseo', 'presenta', 'presentacion', 'receta', 'recetas', 'recipe',
+    'recipes', 'prescripcion',
+    'prescripciones', 'compuesto', 'compuestos', 'categoria', 'categorias',
+    'marca', 'contenido', 'existencia', 'existencias', 'agotado', 'agotados',
+    'saber', 'si', 'gustaria', 'hablar', 'hablame', 'informame', 'recomiendame',
+    'recomendar', 'tienes', 'existe', 'existen', 'podria', 'puedo', 'indica',
+    'indicame', 'venden', 'vendan', 'ensename', 'puedes',
+}
 
-        if mensaje == 'lucy':
+
+def _normalize_text(value):
+    normalized = unicodedata.normalize('NFKD', str(value or '').casefold())
+    return ''.join(character for character in normalized if not unicodedata.combining(character))
+
+
+def _product_tokens(value):
+    return [
+        token for token in re.findall(r'[a-z0-9]+', _normalize_text(value))
+        if len(token) >= 2 and token not in PRODUCT_QUERY_STOP_WORDS
+    ]
+
+
+def _accent_insensitive_regex(value):
+    accent_groups = {
+        'a': '[aáàäâã]',
+        'e': '[eéèëê]',
+        'i': '[iíìïî]',
+        'o': '[oóòöôõ]',
+        'u': '[uúùüû]',
+        'n': '[nñ]',
+    }
+    return ''.join(
+        accent_groups.get(character, re.escape(character))
+        for character in _normalize_text(value)
+    )
+
+
+def _text_contains(field_name, value):
+    return (
+        Q(**{f'{field_name}__icontains': value})
+        | Q(**{f'{field_name}__iregex': _accent_insensitive_regex(value)})
+    )
+
+
+def _product_queryset(with_stock=False):
+    queryset = Productos.objects.select_related(
+        'categoria',
+        'sub_categorias_nivel_1',
+        'sub_categorias_nivel_2',
+    )
+    if with_stock:
+        queryset = queryset.prefetch_related(Prefetch(
+            'almacen',
+            queryset=Almacen.objects.order_by('pk'),
+            to_attr='_almacen_records',
+        ))
+    return queryset
+
+
+def _product_text_filter(queryset, query):
+    tokens = _product_tokens(query)
+    if not tokens:
+        return queryset.none()
+
+    for token in tokens:
+        token_filter = _text_contains('nombre_producto', token)
+        token_filter |= _text_contains('compuesto', token)
+        token_filter |= _text_contains('categoria__nombre_categoria', token)
+        token_filter |= _text_contains('sub_categorias_nivel_1__nombre_sub_categoria', token)
+        token_filter |= _text_contains('sub_categorias_nivel_2__nombre_sub_categoria_nivel_2', token)
+        token_filter |= _text_contains('marca', token)
+        token_filter |= _text_contains('contenido', token)
+        token_filter |= _text_contains('descripcion', token)
+        queryset = queryset.filter(token_filter)
+    return queryset.distinct()
+
+
+def _product_stock_quantity(product):
+    stock_records = getattr(product, '_almacen_records', ())
+    return (stock_records[0].cantidad or 0) if stock_records else 0
+
+
+def _extract_product_query(message, intent):
+    query = _normalize_text(message)
+    command_patterns = {
+        'price': r'^(?:(?:por favor|me puedes|puedes)\s+)*(?:cuanto cuesta|cuanto vale|cual es el precio de|precio(?:s)?(?: de)?|costo(?: de)?|vale)\s*',
+        'availability': r'^(?:(?:por favor|me puedes|puedes)\s+)*(?:esta disponible(?: el| la)?|disponibilidad(?: de)?|disponible(?: el| la)?|hay(?: en existencia)?|tienen|tiene|stock(?: de)?|cuanto queda de)\s*',
+        'detail': r'^(?:(?:por favor|me puedes|puedes|quiero)\s+)*(?:buscar|busca|informacion(?: de| sobre)?|info(?: de| sobre)?|detalle(?:s)?(?: de)?|saber(?: sobre| de)?|datos de)\s*',
+        'list': r'^(?:(?:por favor|quiero|puedes|me puedes)\s+)*(?:muestrame|mostrar|ver|lista|listar|dame|catalogo(?: de)?|que productos hay|que medicamentos hay)\s*',
+    }
+    query = re.sub(command_patterns[intent], '', query).strip()
+    query = re.sub(r'\b(?:productos?|medicamentos?|medicinas?|farmacos?)\b', ' ', query)
+    filler_pattern = r'\b(?:' + '|'.join(
+        re.escape(word) for word in sorted(PRODUCT_QUERY_STOP_WORDS, key=len, reverse=True)
+    ) + r')\b'
+    query = re.sub(filler_pattern, ' ', query)
+    return re.sub(r'\s+', ' ', query).strip(' ?!.,;:')
+
+
+def _parse_product_list_filters(message):
+    query = _normalize_text(message)
+    query = re.sub(
+        r'^(?:(?:por favor|quiero|puedes|me puedes)\s+)*(?:muestrame|mostrar|ver|lista|listar|dame|catalogo(?: de)?)\s*',
+        '',
+        query,
+    )
+    query = re.sub(r'\b(?:productos?|medicamentos?|medicinas?|farmacos?)\b', ' ', query)
+    filters = {}
+    labels = re.compile(
+        r'\b(categoria|tipo|compuesto|principio activo|presentacion|contenido|marca|nombre)\s+(?:de\s+)?'
+    )
+    matches = list(labels.finditer(query))
+    for index, match in enumerate(matches):
+        next_start = matches[index + 1].start() if index + 1 < len(matches) else len(query)
+        value = query[match.end():next_start].strip(' ,;:')
+        value = re.split(
+            r'\b(?:con receta|con recipe|requiere receta|requiere recipe|requiere prescripcion|'
+            r'sin receta|sin recipe|sin prescripcion|no requiere receta|no requiere recipe|'
+            r'no requiere prescripcion|disponibles?|en existencia|agotados?|sin existencia|con stock)\b',
+            value,
+            maxsplit=1,
+        )[0]
+        value = re.sub(r'\b(?:y|del|de|el|la|los|las)\b$', '', value).strip()
+        if not value:
+            continue
+        key = match.group(1)
+        if key in {'categoria', 'tipo'}:
+            filters['category'] = value
+        elif key in {'compuesto', 'principio activo'}:
+            filters['compound'] = value
+        elif key in {'presentacion', 'contenido'}:
+            filters['presentation'] = value
+        else:
+            filters[key] = value
+
+    residual = _normalize_text(message)
+    residual = re.sub(
+        r'^(?:(?:por favor|quiero|puedes|me puedes)\s+)*(?:muestrame|mostrar|ver|lista|listar|dame|catalogo(?: de)?)\s*',
+        '',
+        residual,
+    )
+    residual = re.sub(r'\b(?:productos?|medicamentos?|medicinas?|farmacos?)\b', ' ', residual)
+    residual = labels.sub(' ', residual)
+    for value in filters.values():
+        residual = residual.replace(value, ' ')
+    residual = re.sub(
+        r'\b(?:con receta|requiere receta|requiere recipe|requiere prescripcion|sin receta|sin recipe|sin prescripcion|no requiere receta|no requiere recipe|no requiere prescripcion|disponibles?|en existencia|agotados?|sin existencia|con stock)\b',
+        ' ',
+        residual,
+    )
+    residual = re.sub(r'\b(?:y|de|del|el|la|los|las|con|para)\b', ' ', residual)
+    residual_tokens = _product_tokens(residual)
+    if residual_tokens:
+        filters['text'] = ' '.join(residual_tokens)
+
+    if re.search(r'\b(?:sin receta|sin recipe|no requiere receta|no requiere recipe|sin prescripcion|no requiere prescripcion)\b', _normalize_text(message)):
+        filters['prescription'] = False
+    elif re.search(r'\b(?:con receta|con recipe|requiere receta|requiere recipe|requiere prescripcion)\b', _normalize_text(message)):
+        filters['prescription'] = True
+    if re.search(r'\b(?:agotado|agotados|sin existencia|sin stock)\b', _normalize_text(message)):
+        filters['availability'] = False
+    elif re.search(r'\b(?:disponible|disponibles|en existencia|con stock|stock)\b', _normalize_text(message)):
+        filters['availability'] = True
+    return filters
+
+
+def _apply_product_list_filters(queryset, filters):
+    if 'category' in filters:
+        queryset = queryset.filter(_text_contains('categoria__nombre_categoria', filters['category']))
+    if 'compound' in filters:
+        queryset = queryset.filter(_text_contains('compuesto', filters['compound']))
+    if 'presentation' in filters:
+        queryset = queryset.filter(_text_contains('contenido', filters['presentation']))
+    if 'brand' in filters:
+        queryset = queryset.filter(_text_contains('marca', filters['brand']))
+    if 'nombre' in filters:
+        queryset = queryset.filter(_text_contains('nombre_producto', filters['nombre']))
+    if 'text' in filters:
+        queryset = _product_text_filter(queryset, filters['text'])
+    if 'prescription' in filters:
+        queryset = queryset.filter(requiere_recipe=filters['prescription'])
+    if filters.get('availability') is True:
+        queryset = queryset.filter(almacen__cantidad__gt=0)
+    elif filters.get('availability') is False:
+        queryset = queryset.exclude(almacen__cantidad__gt=0)
+    return queryset.distinct()
+
+
+def _suggest_available_products(query, limit=3):
+    tokens = _product_tokens(query)
+    if not tokens:
+        return []
+
+    queryset = _product_queryset(with_stock=True)
+    candidates = _product_text_filter(queryset, query).order_by('nombre_producto', 'id_producto')[:100]
+    products = list(candidates)
+    available = [
+        product for product in products
+        if _product_stock_quantity(product) > 0
+    ]
+    if not available:
+        scored_ids = []
+        rows = Productos.objects.order_by('nombre_producto', 'id_producto').values(
+            'id_producto',
+            'nombre_producto',
+            'compuesto',
+            'categoria__nombre_categoria',
+        )[:SUGGESTION_SCAN_LIMIT]
+        normalized_query = ' '.join(tokens)
+        for row in rows:
+            searchable = ' '.join(filter(None, (
+                row['nombre_producto'],
+                row['compuesto'],
+                row['categoria__nombre_categoria'],
+            )))
+            normalized_candidate = _normalize_text(searchable)
+            score = max(
+                SequenceMatcher(None, normalized_query, normalized_candidate).ratio(),
+                *(SequenceMatcher(None, token, normalized_candidate).ratio() for token in tokens),
+            )
+            if score >= 0.32:
+                scored_ids.append((score, row['id_producto']))
+        selected_ids = [
+            product_id for _, product_id in sorted(scored_ids, reverse=True)[:30]
+        ]
+        products = list(
+            _product_queryset(with_stock=True)
+            .filter(id_producto__in=selected_ids)
+        )
+        score_by_id = dict(scored_ids)
+        products.sort(key=lambda product: score_by_id.get(product.pk, 0), reverse=True)
+        available = [
+            product for product in products
+            if _product_stock_quantity(product) > 0
+        ]
+    return available[:limit]
+
+
+def _not_found_response(query):
+    suggestions = _suggest_available_products(query)
+    if not suggestions:
+        return (
+            f"No encontré '{query}'. No hay alternativas similares disponibles en inventario; "
+            "puedes filtrar el catálogo por categoría o compuesto."
+        )
+    lines = [f"No encontré '{query}'. Estas alternativas similares sí están disponibles:"]
+    for product in suggestions:
+        compound = product.compuesto or 'Compuesto no especificado'
+        lines.append(f"• {product.nombre_producto} — {compound} ({_product_stock_quantity(product)} unidades)")
+    return '\n'.join(lines)
+
+
+class ChatBotFarmaluz:
+    def _list_products(self, message):
+        filters = _parse_product_list_filters(message)
+        queryset = _apply_product_list_filters(_product_queryset(), filters)
+        try:
+            total = queryset.count()
+            products = _safe_product_list(
+                queryset.order_by('nombre_producto', 'id_producto'),
+                PRODUCT_LIST_LIMIT,
+            )
+        except Exception as error:
+            print(f'Error consultando el catálogo: {error}')
+            return _catalog_unavailable_message('Error al consultar la tabla de productos')
+        if products is None:
+            return _catalog_unavailable_message('Error al consultar la tabla de productos')
+        if not products:
+            filter_query = ' '.join(
+                value for value in filters.values() if isinstance(value, str)
+            )
+            if filter_query:
+                return _not_found_response(filter_query)
+            if not filters:
+                return 'No hay productos registrados en la base de datos.'
+            return 'No hay productos que coincidan con los filtros seleccionados.'
+
+        response = '📦 **LISTA DE PRODUCTOS:**\n\n'
+        for product in products:
+            price = f'${product.precio_venta}' if product.precio_venta else 'Consultar'
+            category = product.categoria.nombre_categoria if product.categoria else 'Sin categoría'
+            response += (
+                f'• {product.nombre_producto or "Producto"} — {price}; '
+                f'Categoría: {category}; Compuesto: {product.compuesto or "No especificado"}; '
+                f'Requiere récipe: {"Sí" if product.requiere_recipe else "No"}\n'
+            )
+        if total > len(products):
+            response += f'\nMostrando {len(products)} de {total} resultados. Refina con nombre, categoría, compuesto, marca, presentación, receta o disponibilidad.'
+        if not filters and total > len(products):
+            response += '\nEjemplos: `productos categoria analgesicos`, `productos compuesto ibuprofeno`, `productos disponibles`.'
+        return response
+
+    def _price(self, query):
+        products = _safe_product_list(
+            _product_text_filter(_product_queryset(), query).order_by('nombre_producto', 'id_producto'),
+            5,
+        )
+        if products is None:
+            return _catalog_unavailable_message('Error en filtro de precio')
+        if not products:
+            return _not_found_response(query)
+        lines = [f"💰 **PRECIO DE '{query}':**", '']
+        for product in products:
+            price = f'${product.precio_venta}' if product.precio_venta else 'No disponible'
+            lines.append(f'• {product.nombre_producto}: {price}')
+        return '\n'.join(lines)
+
+    def _availability(self, query):
+        products = _safe_product_list(
+            _product_text_filter(_product_queryset(), query)
+            .order_by('nombre_producto', 'id_producto'),
+            5,
+            with_stock=True,
+        )
+        if products is None:
+            return _catalog_unavailable_message('Error en filtro de disponibilidad')
+        if not products:
+            return _not_found_response(query)
+        lines = [f"📊 **DISPONIBILIDAD DE '{query}':**", '']
+        for product in products:
+            quantity = _product_stock_quantity(product)
+            if quantity > 10:
+                status = f'✅ Disponible ({quantity} unidades)'
+            elif quantity > 0:
+                status = f'⚠️ Cantidad baja ({quantity} unidades)'
+            else:
+                status = '❌ Agotado'
+            lines.append(f'• {product.nombre_producto}: {status}')
+            if product.requiere_recipe:
+                lines.append('  ⚠️ Requiere récipe/prescripción médica; tenlo a la mano.')
+        return '\n'.join(lines)
+
+    def _details(self, query):
+        products = _safe_product_list(
+            _product_text_filter(_product_queryset(), query)
+            .order_by('nombre_producto', 'id_producto'),
+            10,
+            with_stock=True,
+        )
+        if products is None:
+            return _catalog_unavailable_message('Error en búsqueda detallada')
+        if not products:
+            return _not_found_response(query)
+
+        lines = [f"🔍 **RESULTADOS DE '{query}':**", '']
+        for product in products:
+            price = f'${product.precio_venta}' if product.precio_venta else 'Consultar'
+            category = product.categoria.nombre_categoria if product.categoria else 'No especificada'
+            lines.extend([
+                f'• {product.nombre_producto or "Producto"}',
+                f'  💰 Precio: {price}',
+                f'  📦 Presentación: {product.contenido or "No especificada"}',
+                f'  📝 Descripción: {product.descripcion or "Sin descripción"}',
+                f'  🧪 Compuesto: {product.compuesto or "No especificado"}',
+                f'  🗂️ Categoría: {category}',
+                f'  📊 Cantidad en almacén: {_product_stock_quantity(product)}',
+                f'  🏷️ Marca: {product.marca or "Genérica"}',
+                f'  🩺 Requiere récipe/prescripción: {"Sí" if product.requiere_recipe else "No"}',
+                '',
+            ])
+        return '\n'.join(lines)
+
+    def procesar_mensaje(self, mensaje):
+        normalized = _normalize_text(mensaje).strip()
+        if normalized == 'lucy':
             return f"""{BOT_EMOJI} **Hola, soy {BOT_NAME}**, tu asistente virtual de FarmaLuz.
 
-Puedo ayudarte a revisar productos, precios y stock de forma rápida.
+Puedo ayudarte a revisar productos, precios y disponibilidad.
 
 **Ejemplo de uso:**
 • `buscar diclofenac`
 • `precio diclofenac`
 • `disponible diclofenac`
+• `productos categoria analgesicos`
 
 Escribe `ayuda` para ver todos los comandos rápidos."""
-        
-        if mensaje in ['productos', 'lista', 'ver productos']:
-            productos = _safe_product_list(Productos.objects.all(), 15)
-            if productos is None:
-                return _catalog_unavailable_message("Error al consultar la tabla de productos")
-            if productos:
-                respuesta = "📦 **LISTA DE PRODUCTOS:**\n\n"
-                for p in productos:
-                    precio = f"${p.precio_venta}" if getattr(p, 'precio_venta', None) else "Consultar"
-                    respuesta += f"• {p.nombre_producto} - {precio}\n"
-                return respuesta
-            return "No hay productos registrados en la base de datos."
-        
-        if mensaje.startswith('precio '):
-            producto_nombre = mensaje.replace('precio ', '').strip()
-            if not producto_nombre:
-                return "❌ Uso correcto: `precio NOMBRE`\nEjemplo: `precio paracetamol`"
-            
-            productos = _safe_product_list(
-                Productos.objects.filter(nombre_producto__icontains=producto_nombre),
-                5,
-            )
-            if productos is None:
-                return _catalog_unavailable_message("Error en filtro de precio")
-            if productos:
-                respuesta = f"💰 **PRECIO DE '{producto_nombre}':**\n\n"
-                for p in productos:
-                    precio = f"${p.precio_venta}" if getattr(p, 'precio_venta', None) else "No disponible"
-                    respuesta += f"• {p.nombre_producto}: {precio}\n"
-                return respuesta
-            return f"❌ No encontré '{producto_nombre}'. Usa `productos` para ver la lista."
-        
-        if mensaje.startswith('disponible '):
-            producto_nombre = mensaje.replace('disponible ', '').strip()
-            if not producto_nombre:
-                return "❌ Uso correcto: `disponible NOMBRE`\nEjemplo: `disponible paracetamol`"
-            
-            productos = _safe_product_list(
-                Productos.objects.filter(nombre_producto__icontains=producto_nombre),
-                5,
-                with_stock=True,
-            )
-            if productos is None:
-                return _catalog_unavailable_message("Error en filtro de disponibilidad")
-            if productos:
-                respuesta = f"📊 **DISPONIBILIDAD DE '{producto_nombre}':**\n\n"
-                for p in productos:
-                    try:
-                        stock_records = getattr(p, '_almacen_records', None)
-                        stock = stock_records[0] if stock_records else None
-                        cantidad = stock.cantidad if stock else 0
-                    except Exception as e:
-                        print(f"Error consultando Almacen: {e}")
-                        cantidad = 0
-                        
-                    if cantidad > 10:
-                        estado = f"✅ Disponible ({cantidad} unidades)"
-                    elif cantidad > 0:
-                        estado = f"⚠️ Cantidad baja ({cantidad} unidades)"
-                    else:
-                        estado = "❌ Agotado"
-                    respuesta += f"• {p.nombre_producto}: {estado}\n"
-                return respuesta
-            return f"❌ No encontré '{producto_nombre}'. Usa `productos` para ver la lista."
-        
-        if mensaje.startswith('buscar '):
-            producto_nombre = mensaje.replace('buscar ', '').strip()
-            if not producto_nombre:
-                return "❌ Uso correcto: `buscar NOMBRE`\nEjemplo: `buscar paracetamol`"
-            
-            productos = _safe_product_list(
-                Productos.objects.filter(nombre_producto__icontains=producto_nombre),
-                10,
-                with_stock=True,
-            )
-            if productos is None:
-                return _catalog_unavailable_message("Error en búsqueda detallada")
-            if productos:
-                respuesta = f"🔍 **RESULTADOS DE '{producto_nombre}':**\n\n"
-                for p in productos:
-                    try:
-                        stock_records = getattr(p, '_almacen_records', None)
-                        stock = stock_records[0] if stock_records else None
-                        cantidad = stock.cantidad if stock else 0
-                    except Exception:
-                        cantidad = 0
-                        
-                    precio = f"${p.precio_venta}" if getattr(p, 'precio_venta', None) else "Consultar"
-                    contenido = getattr(p, 'contenido', 'No especificado')
-                    descripcion = getattr(p, 'descripcion', 'Sin descripción')
-                    marca = getattr(p, 'marca', 'Genérico')
-                    
-                    respuesta += f"• {p.nombre_producto}\n"
-                    respuesta += f"  💰 Precio: {precio}\n"
-                    respuesta += f"  📦 Contenido: {contenido}\n"
-                    respuesta += f"  📝 Descripción: {descripcion}\n"
-                    respuesta += f"  📊 Cantidad en Almacén: {cantidad}\n"
-                    respuesta += f"  🏷️ Marca: {marca}\n\n"
-                return respuesta
-            return f"❌ No encontré '{producto_nombre}'. Usa `productos` para ver la lista."
-        
-        if mensaje in ['ayuda', 'comandos', 'help']:
+
+        if re.search(r'\b(?:ayuda|comandos|help)\b', normalized):
             return self.mostrar_ayuda()
-        
-        if mensaje in ['hola', 'buenas', 'hola buenas', 'buenos dias', 'buenas tardes', 'buenas noches', 'hi', 'hello']:
+        if re.search(r'\b(?:hola|buenas|hi|hello)\b', normalized):
             return f"¡Hola! {BOT_EMOJI}\n\n" + self.mostrar_ayuda()
-        
-        if mensaje in ['adios', 'chao', 'hasta luego', 'nos vemos', 'bye', 'gracias']:
+        if re.search(r'\b(?:adios|chao|hasta luego|nos vemos|bye|gracias)\b', normalized):
             return f"¡Gracias por consultar Farmaluz! {BOT_EMOJI}\n\nEscribe `hola` si necesitas algo más."
-        
+
+        has_product_word = bool(re.search(r'\b(?:producto|productos|medicamento|medicamentos|medicina|medicinas|farmaco|farmacos)\b', normalized))
+        list_cue = bool(re.search(r'\b(?:lista|listar|catalogo|mostrar|muestrame|ensename|ver|dame)\b', normalized))
+        list_filter_cue = bool(re.search(
+            r'\b(?:categoria|tipo|compuesto|principio activo|presentacion|contenido|marca|nombre|receta|recipe|prescripcion|disponible|disponibles|stock|existencia|agotados|agotado)\b',
+            normalized,
+        ))
+        if has_product_word and (
+            list_cue
+            or list_filter_cue
+            or normalized in {'producto', 'productos', 'medicamento', 'medicamentos', 'medicina', 'medicinas', 'farmaco', 'farmacos'}
+            or re.search(r'\b(?:que|cuales)\s+(?:productos|medicamentos|medicinas)\s+(?:hay|tienen|tienes)\b', normalized)
+        ):
+            return self._list_products(mensaje)
+        if normalized in {'lista', 'listar', 'catalogo', 'catalogar', 'hay productos', 'hay medicamentos', 'hay medicinas'}:
+            return self._list_products(mensaje)
+
+        if re.search(r'\b(?:precio|precios|cuesta|cuestan|costo|coste|vale|valen)\b', normalized):
+            query = _extract_product_query(mensaje, 'price')
+            return self._price(query) if query else 'Indica el nombre del producto. Ejemplo: `precio paracetamol`.'
+
+        if re.search(r'\b(?:disponible|disponibilidad|stock|existencia|hay|tienen|tiene|tienes|existe|existen)\b', normalized):
+            query = _extract_product_query(mensaje, 'availability')
+            return self._availability(query) if query else 'Indica el producto que deseas consultar. Ejemplo: `disponible paracetamol`.'
+
+        if re.search(r'\b(?:buscar|busca|informacion|info|detalle|detalles|saber|consultar|consulta|informame|recomiendame)\b', normalized):
+            query = _extract_product_query(mensaje, 'detail')
+            return self._details(query) if query else 'Indica el nombre del producto. Ejemplo: `buscar paracetamol`.'
+
+        if has_product_word:
+            query = _extract_product_query(mensaje, 'detail')
+            return self._details(query) if query else 'Indica el nombre del producto. Ejemplo: `buscar paracetamol`.'
+
         return self.mostrar_error()
-    
-    #funcion de ayuda
+
     def mostrar_ayuda(self):
         lines = [f"{BOT_EMOJI} **COMANDOS RÁPIDOS:**", ""]
         for command, description in RAPID_COMMANDS:
             lines.append(f"• `{command}` - {description}")
 
         lines.extend([
+            "",
+            "**FILTROS DEL CATÁLOGO:**",
+            "• `productos categoria analgesicos`",
+            "• `productos compuesto ibuprofeno`",
+            "• `productos disponibles` o `productos con receta`",
             "",
             "**EJEMPLOS DE USO:**",
             "• `productos`",
@@ -624,6 +950,12 @@ def login_view(request):
     else:
         request.session['conversation_key'] = cliente.cedula
 
+    if cliente.cedula == SUPERADMIN_CEDULA:
+        _record_superadmin_action(
+            BitacoraSuperadmin.Action.LOGIN,
+            'Inicio de sesión del superadministrador.',
+        )
+
     redirect_url = reverse('chat:admin_dashboard') if cliente.cedula == SUPERADMIN_CEDULA else reverse('chat:bot_chat')
     return redirect(redirect_url)
 
@@ -636,6 +968,7 @@ def registro_view(request):
             return redirect('chat:bot_chat')
         return render(request, 'registro.html', {
             'registration_form': RegistrationForm(),
+            'latest_eligible_birth_date': latest_eligible_birth_date(),
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
         })
@@ -648,6 +981,7 @@ def registro_view(request):
         return render(request, 'registro.html', {
             'registration_form': form,
             'form_values': form_values,
+            'latest_eligible_birth_date': latest_eligible_birth_date(),
             'assistant_name': BOT_NAME,
             'assistant_emoji': BOT_EMOJI,
         }, status=400)
@@ -802,6 +1136,10 @@ def superadmin_password_change_view(request):
 
     cliente.password = make_password(form.cleaned_data['new_password'])
     cliente.save(update_fields=['password'])
+    _record_superadmin_action(
+        BitacoraSuperadmin.Action.PASSWORD_CHANGE,
+        'El superadministrador actualizó su contraseña.',
+    )
     messages.success(request, 'La contraseña del superadministrador se actualizó correctamente.')
     return redirect('chat:admin_dashboard')
 
@@ -820,6 +1158,11 @@ def terminos_view(request):
 
 
 def logout_view(request):
+    if _is_admin_session(request):
+        _record_superadmin_action(
+            BitacoraSuperadmin.Action.LOGOUT,
+            'Cierre de sesión del superadministrador.',
+        )
     request.session.flush()
     login_url = reverse('chat:login')
     if request.GET.get('expired') == '1':
@@ -835,6 +1178,15 @@ def toggle_bloqueo_cliente(request, cliente_id):
     if cliente:
         cliente.bloqueado = not cliente.bloqueado
         cliente.save(update_fields=['bloqueado'])
+        action_type = (
+            BitacoraSuperadmin.Action.BLOCK
+            if cliente.bloqueado
+            else BitacoraSuperadmin.Action.UNBLOCK
+        )
+        _record_superadmin_action(
+            action_type,
+            f'Usuario afectado: {cliente.cedula} ({_client_display_name(cliente)}).',
+        )
 
     return redirect('chat:admin_dashboard')
 
@@ -973,7 +1325,7 @@ def password_reset_done(request):
 def password_reset_confirm(request, signed_token):
     """Confirmar nueva Contraseña - Verificación por firma digital"""
     try:
-        print(f"🔐 Token recibido: {signed_token[:50]}...")
+        print(f"Token recibido: {signed_token[:50]}...")
 
         # Los enlaces nuevos usan Base64 URL-safe para evitar que los clientes
         # de correo separen el token por sus caracteres especiales.
@@ -989,18 +1341,18 @@ def password_reset_confirm(request, signed_token):
         uidb64 = payload['uidb64']
         token = payload['token']
         
-        print(f"🔑 UIDB64 decodificado: {uidb64}")
-        print(f"🔑 Token decodificado: {token[:20]}...")
+        print(f"UIDB64 decodificado: {uidb64}")
+        print(f"Token decodificado: {token[:20]}...")
         
         # Obtener cliente
         cliente = _cliente_from_uidb64(uidb64)
         if not cliente:
-            print(f"❌ Cliente no encontrado para UIDB64: {uidb64}")
+            print(f"Cliente no encontrado para UIDB64: {uidb64}")
             return render(request, 'chat/password_reset_confirm.html', {
                 'error_message': 'Cliente no encontrado. El enlace es inválido.'
             })
         
-        print(f"✅ Cliente encontrado: {cliente.cedula} - {cliente.correo}")
+        print(f"Cliente encontrado: {cliente.cedula} - {cliente.correo}")
         
         if request.method == 'POST':
             new_password = request.POST.get('new_password1', '').strip()
@@ -1028,12 +1380,12 @@ def password_reset_confirm(request, signed_token):
                     'error_message': 'Las contraseñas no coinciden.'
                 })
             
-            # ✅ CORRECTO: Hashear la contraseña antes de guardar
+            # Hashear la contraseña antes de guardar
             from django.contrib.auth.hashers import make_password
             cliente.password = make_password(new_password)
             cliente.save()
             
-            print(f"✅ Contraseña actualizada para: {cliente.correo}")
+            print(f"Contraseña actualizada para: {cliente.correo}")
             
             # Limpiar sesión si existe
             _clear_password_reset_state(request)
@@ -1046,21 +1398,21 @@ def password_reset_confirm(request, signed_token):
         })
         
     except signing.BadSignature as e:
-        print(f"❌ BadSignature error: {e}")
+        print(f"BadSignature error: {e}")
         error_msg = str(e)
         if 'No ":" found in value' in error_msg:
-            print("🔄 Token ya usado - Redirigiendo a página de éxito")
+            print("Token ya usado - Redirigiendo a página de éxito")
             return redirect('chat:password_reset_complete')
         return render(request, 'chat/password_reset_confirm.html', {
             'error_message': 'El enlace es inválido o ha sido manipulado. Solicita un nuevo enlace.'
         })
     except signing.SignatureExpired as e:
-        print(f"❌ SignatureExpired error: {e}")
+        print(f"SignatureExpired error: {e}")
         return render(request, 'chat/password_reset_confirm.html', {
             'error_message': 'El enlace ha expirado. Solicita un nuevo enlace de recuperación.'
         })
     except Exception as e:
-        print(f"❌ Error general en password_reset_confirm: {e}")
+        print(f"Error general en password_reset_confirm: {e}")
         traceback.print_exc()
         return render(request, 'chat/password_reset_confirm.html', {
             'error_message': f'Error: {str(e)}'
@@ -1094,10 +1446,15 @@ def borrar_conversacion(request):
             return JsonResponse({'error': 'Falta conversation_key'}, status=400)
         
         # 👇 GUARDAR EN BASE DE DATOS
-        ChatsOcultos.objects.get_or_create(
+        _, created = ChatsOcultos.objects.get_or_create(
             superadmin_cedula=SUPERADMIN_CEDULA,
             conversation_key=conversation_key
         )
+        if created:
+            _record_superadmin_action(
+                BitacoraSuperadmin.Action.HIDE_CHAT,
+                f'Conversación ocultada del panel: {conversation_key}.',
+            )
         
         return JsonResponse({'success': True, 'message': 'Chat oculto del panel'})
         
