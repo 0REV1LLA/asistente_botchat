@@ -494,6 +494,47 @@ class ProductStockQueryTests(TestCase):
         self.assertIn('Antibiotico A', response)
         self.assertNotIn('Antibiotico B', response)
 
+    def test_product_list_is_compact_and_only_shows_optional_attributes_when_relevant(self):
+        paracetamol = Productos.objects.create(
+            nombre_producto='Paracetamol',
+            descripcion='Analgésico',
+            contenido='Tabletas 500 mg',
+            marca='',
+            tiene_iva=False,
+            precio_venta='2.50',
+        )
+        antibiotic = Productos.objects.create(
+            nombre_producto='Amoxicilina',
+            descripcion='Antibiótico',
+            contenido='Cápsulas',
+            marca='',
+            tiene_iva=False,
+            precio_venta='3.00',
+            compuesto='Amoxicilina',
+            requiere_recipe=True,
+        )
+        Almacen.objects.create(id_producto=paracetamol, cantidad=12)
+        Almacen.objects.create(id_producto=antibiotic, cantidad=8)
+
+        from .views import ChatBotFarmaluz
+        chatbot = ChatBotFarmaluz()
+
+        normal_product = chatbot.procesar_mensaje('productos paracetamol')
+        prescription_product = chatbot.procesar_mensaje('productos amoxicilina')
+        similar_product = chatbot.procesar_mensaje('productos paracetamola')
+
+        self.assertIn('• Paracetamol — $2.50', normal_product)
+        self.assertNotIn('Compuesto no especificado', normal_product)
+        self.assertNotIn('Requiere récipe', normal_product)
+        self.assertIn('• Amoxicilina — $3.00', prescription_product)
+        self.assertIn('Compuesto: Amoxicilina', prescription_product)
+        self.assertIn('Requiere récipe médico', prescription_product)
+        self.assertIn('Productos similares disponibles:', similar_product)
+        self.assertIn('• Paracetamol — $2.50', similar_product)
+        for response in (normal_product, prescription_product, similar_product):
+            self.assertNotIn('**', response)
+            self.assertNotIn(';', response)
+
     def test_bot_accepts_natural_price_queries_and_suggests_available_matches(self):
         product = Productos.objects.create(
             nombre_producto='Ibuprofeno',

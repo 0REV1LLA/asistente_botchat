@@ -519,6 +519,19 @@ def _format_suggestion_lines(products):
 
 
 class ChatBotFarmaluz:
+    def _format_catalog_products(self, products):
+        lines = []
+        for index, product in enumerate(products):
+            if index:
+                lines.append('')
+            price = f'${product.precio_venta}' if product.precio_venta else 'Consultar'
+            lines.append(f'• {product.nombre_producto or "Producto"} — {price}')
+            if product.compuesto:
+                lines.append(f'  Compuesto: {product.compuesto}')
+            if product.requiere_recipe:
+                lines.append('  Requiere récipe médico')
+        return lines
+
     def _list_products(self, message):
         filters = _parse_product_list_filters(message)
         queryset = _apply_product_list_filters(_product_queryset(), filters)
@@ -538,20 +551,22 @@ class ChatBotFarmaluz:
                 value for value in filters.values() if isinstance(value, str)
             )
             if filter_query:
-                return _not_found_response(filter_query)
+                suggestions = _suggest_available_products(filter_query)
+                if suggestions:
+                    lines = [
+                        f"No encontré coincidencias exactas para '{filter_query}'. "
+                        "Productos similares disponibles:",
+                        '',
+                    ]
+                    lines.extend(self._format_catalog_products(suggestions))
+                    return '\n'.join(lines)
+                return f"No hay productos que coincidan con '{filter_query}'."
             if not filters:
                 return 'No hay productos registrados en la base de datos.'
             return 'No hay productos que coincidan con los filtros seleccionados.'
 
-        response = '📦 **LISTA DE PRODUCTOS:**\n\n'
-        for product in products:
-            price = f'${product.precio_venta}' if product.precio_venta else 'Consultar'
-            category = product.categoria.nombre_categoria if product.categoria else 'Sin categoría'
-            response += (
-                f'• {product.nombre_producto or "Producto"} — {price}; '
-                f'Categoría: {category}; Compuesto: {product.compuesto or "No especificado"}; '
-                f'Requiere récipe: {"Sí" if product.requiere_recipe else "No"}\n'
-            )
+        response = '📦 LISTA DE PRODUCTOS\n\n'
+        response += '\n'.join(self._format_catalog_products(products))
         if total > len(products):
             response += f'\nMostrando {len(products)} de {total} resultados. Refina con nombre, categoría, compuesto, marca, presentación, receta o disponibilidad.'
         if not filters and total > len(products):
@@ -656,13 +671,15 @@ Escribe `ayuda` para ver todos los comandos rápidos."""
             return f"¡Gracias por consultar Farmaluz! {BOT_EMOJI}\n\nEscribe `hola` si necesitas algo más."
 
         has_product_word = bool(re.search(r'\b(?:producto|productos|medicamento|medicamentos|medicina|medicinas|farmaco|farmacos)\b', normalized))
+        product_list_prefix = bool(re.match(r'^(?:productos?|medicamentos?|medicinas?|farmacos?)\b', normalized))
         list_cue = bool(re.search(r'\b(?:lista|listar|catalogo|mostrar|muestrame|ensename|ver|dame)\b', normalized))
         list_filter_cue = bool(re.search(
             r'\b(?:categoria|tipo|compuesto|principio activo|presentacion|contenido|marca|nombre|receta|recipe|prescripcion|disponible|disponibles|stock|existencia|agotados|agotado)\b',
             normalized,
         ))
         if has_product_word and (
-            list_cue
+            product_list_prefix
+            or list_cue
             or list_filter_cue
             or normalized in {'producto', 'productos', 'medicamento', 'medicamentos', 'medicina', 'medicinas', 'farmaco', 'farmacos'}
             or re.search(r'\b(?:que|cuales)\s+(?:productos|medicamentos|medicinas)\s+(?:hay|tienen|tienes)\b', normalized)
