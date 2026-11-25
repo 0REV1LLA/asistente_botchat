@@ -112,7 +112,7 @@
 
     <div hidden>{% csrf_token %}</div>
     {{ chat_history|json_script:"chat-history-data" }}
-    <script src="{% static 'chat/js/chat.js' %}?v=2" defer></script>
+    <script src="{% static 'chat/js/chat.js' %}?v=3" defer></script>
     <script src="{% static 'chat/js/session_timeout.js' %}" defer data-session-timeout
         data-logout-url="{% url 'chat:logout' %}"
         data-renew-url="{% url 'chat:renew_session' %}"

@@ -262,6 +262,7 @@ class ChatHistoryPaginationTests(TestCase):
             ('productos', 'Ver y filtrar productos por categoría, compuesto u otros atributos'),
             response.context['quick_commands'],
         )
+        self.assertContains(response, 'chat/js/chat.js?v=3')
 
         oldest_initial_id = response.context['chat_history'][0]['id']
         older_response = self.client.get(
@@ -341,6 +342,13 @@ class MessageTimeFormatTests(TestCase):
         )
 
         self.assertRegex(_serialize_message(message)['time'], r'^\d{2}:\d{2} (AM|PM)$')
+
+    def test_collected_chat_script_matches_the_source_asset(self):
+        project_root = Path(__file__).resolve().parent.parent
+        source_script = project_root / 'chat' / 'static' / 'chat' / 'js' / 'chat.js'
+        collected_script = project_root / 'static' / 'chat' / 'js' / 'chat.js'
+
+        self.assertEqual(source_script.read_bytes(), collected_script.read_bytes())
 
 
 class ProductStockQueryTests(TestCase):
