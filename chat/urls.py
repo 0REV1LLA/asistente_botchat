@@ -9,6 +9,8 @@ urlpatterns = [
     path('acceso/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('terminos/', views.terminos_view, name='terminos'),
+    path('manual/sistema/', views.manual_sistema_view, name='manual_sistema'),
+    path('manual/usuario/', views.manual_usuario_view, name='manual_usuario'),
     path('sesion/renovar/', views.renew_session_view, name='renew_session'),
 
      # URLs de recuperación de contraseña

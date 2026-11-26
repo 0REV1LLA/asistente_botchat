@@ -65,6 +65,41 @@ function setupConfirmDialog() {
     };
 }
 
+function setupManualsDialog() {
+    const overlay = document.getElementById('manualsOverlay');
+    const openButton = document.querySelector('[data-manuals-open]');
+    const closeButton = overlay?.querySelector('[data-manuals-close]');
+    const firstManualLink = overlay?.querySelector('a');
+    if (!overlay || !openButton || !closeButton) {
+        return;
+    }
+
+    const closeDialog = () => {
+        overlay.hidden = true;
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('confirm-open');
+        openButton.focus();
+    };
+
+    openButton.addEventListener('click', () => {
+        overlay.hidden = false;
+        overlay.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('confirm-open');
+        firstManualLink?.focus();
+    });
+    closeButton.addEventListener('click', closeDialog);
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) {
+            closeDialog();
+        }
+    });
+    document.addEventListener('keydown', (event) => {
+        if (!overlay.hidden && event.key === 'Escape') {
+            closeDialog();
+        }
+    });
+}
+
 // ============================================
 // MODAL DE ÉXITO - RESPONSIVE Y ESTILIZADO
 // ============================================
@@ -218,6 +253,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const clientCedula = document.getElementById('threadClientCedula');
     const scrollButton = document.getElementById('scrollToBottomBtn');
     const confirmDialog = setupConfirmDialog();
+
+    setupManualsDialog();
 
     // Inicializar menú lateral
     initSidebar();

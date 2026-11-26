@@ -604,6 +604,13 @@ body {
     color: #fff;
 }
 
+.manuals-dialog a.confirm-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
 .session-timeout-overlay {
     z-index: 120;
 }

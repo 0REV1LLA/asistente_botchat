@@ -195,6 +195,99 @@ class SuperadminPasswordChangeTests(TestCase):
         self.assertNotRegex(content, r'\sstyle\s*=')
 
 
+class ManualPagesTests(TestCase):
+    def setUp(self):
+        admin = Clientes.objects.create(cedula='SuperAdminFarmaLuz')
+        session = self.client.session
+        session['user_type'] = 'admin'
+        session['cliente_id'] = admin.cliente_id
+        session['cliente_cedula'] = admin.cedula
+        session['last_activity'] = timezone.now().timestamp()
+        session.save()
+
+    def test_superadmin_panel_has_manuals_button_and_selection_modal(self):
+        response = self.client.get(reverse('chat:admin_dashboard'))
+        content = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-manuals-open')
+        self.assertContains(response, 'id="manualsOverlay"')
+        self.assertContains(response, 'data-manuals-close')
+        self.assertContains(response, 'Manual del sistema')
+        self.assertContains(response, 'Manual de usuario')
+        self.assertContains(response, reverse('chat:manual_sistema'))
+        self.assertContains(response, reverse('chat:manual_usuario'))
+        self.assertContains(response, 'chat/css/admin_dashboard.css?v=2')
+        self.assertContains(response, 'chat/js/admin_dashboard.js?v=2')
+        self.assertNotRegex(content, r'\sstyle\s*=')
+        self.assertNotRegex(
+            content,
+            r'<script(?![^>]*\bsrc=)(?![^>]*type="application/json")[^>]*>',
+        )
+
+        script_path = (
+            Path(__file__).resolve().parent
+            / 'static'
+            / 'chat'
+            / 'js'
+            / 'admin_dashboard.js'
+        )
+        script = script_path.read_text(encoding='utf-8')
+        self.assertIn("event.key === 'Escape'", script)
+        self.assertIn("event.target === overlay", script)
+        self.assertIn("closeButton.addEventListener('click', closeDialog)", script)
+
+    def test_manual_pages_show_documentation_and_respect_csp(self):
+        manual_pages = (
+            (
+                'manual_sistema',
+                ('Django', 'Supabase', 'WhiteNoise', 'Vercel', 'BitacoraSuperadmin'),
+            ),
+            (
+                'manual_usuario',
+                ('Acciones del usuario normal', 'AM/PM', 'productos', 'buscar', 'Vista de monitoreo'),
+            ),
+        )
+        for route_name, required_content in manual_pages:
+            with self.subTest(route_name=route_name):
+                response = self.client.get(reverse(f'chat:{route_name}'))
+                content = response.content.decode()
+
+                self.assertEqual(response.status_code, 200)
+                for phrase in required_content:
+                    self.assertContains(response, phrase)
+                self.assertIn("script-src 'self'", response.headers['Content-Security-Policy'])
+                self.assertNotRegex(content, r'\sstyle\s*=')
+                self.assertNotRegex(content, r'<script(?![^>]*\bsrc=)[^>]*>')
+
+    def test_manual_pages_require_the_expected_session_role(self):
+        self.client.logout()
+        self.assertEqual(
+            self.client.get(reverse('chat:manual_sistema')).status_code,
+            302,
+        )
+        self.assertEqual(
+            self.client.get(reverse('chat:manual_usuario')).status_code,
+            302,
+        )
+
+        client = Clientes.objects.create(cedula='12345678')
+        session = self.client.session
+        session['user_type'] = 'client'
+        session['cliente_id'] = client.cliente_id
+        session['cliente_cedula'] = client.cedula
+        session.save()
+
+        self.assertEqual(
+            self.client.get(reverse('chat:manual_usuario')).status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.get(reverse('chat:manual_sistema')).status_code,
+            302,
+        )
+
+
 class SuperadminAuditTests(TestCase):
     def setUp(self):
         self.admin = Clientes.objects.create(

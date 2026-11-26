@@ -1187,6 +1187,18 @@ def terminos_view(request):
     return render(request, 'terminos.html', _auth_brand_context())
 
 
+def manual_sistema_view(request):
+    if not _is_admin_session(request):
+        return redirect('chat:login')
+    return render(request, 'manual_sistema.html', _auth_brand_context())
+
+
+def manual_usuario_view(request):
+    if request.session.get('user_type') not in {'client', 'admin'}:
+        return redirect('chat:login')
+    return render(request, 'manual_usuario.html', _auth_brand_context())
+
+
 def logout_view(request):
     if _is_admin_session(request):
         _record_superadmin_action(

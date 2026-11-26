@@ -1,0 +1,50 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmaLuz | Manual del sistema</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'chat/img/favicon.ico' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'chat/css/login.css' %}">
+</head>
+<body>
+    <main class="page-shell">
+        <article class="login-card legal-card">
+            <p class="eyebrow">FarmaLuz · Documentación técnica</p>
+            <h1>Manual del sistema</h1>
+            <p class="subtitle">Arquitectura, operación y controles del asistente FarmaLuz.</p>
+
+            <section class="legal-section">
+                <h2>Arquitectura y despliegue</h2>
+                <p>FarmaLuz es una aplicación web escrita en Python con Django. Django gestiona las rutas, vistas, formularios, sesiones, acceso a datos y contenido HTML. El catálogo relaciona productos con categorías e inventario; la configuración de producción obtiene la conexión a PostgreSQL/Supabase mediante variables de entorno.</p>
+                <p>Los archivos CSS, JavaScript e imágenes se sirven como estáticos. WhiteNoise permite servirlos desde la propia aplicación. El proyecto está preparado para desplegarse en Vercel; los valores de conexión, correo y claves de entorno se proporcionan en la configuración segura del despliegue, no en las plantillas.</p>
+            </section>
+
+            <section class="legal-section">
+                <h2>Flujo de conversación</h2>
+                <p>El navegador envía el mensaje al endpoint del chat. El backend valida la sesión del cliente y su estado, registra el mensaje, procesa la consulta con el chatbot y guarda la respuesta. El endpoint devuelve la respuesta y las horas en formato de 12 horas con AM/PM. El navegador agrega ambos mensajes al chat y conserva el historial para consultas posteriores.</p>
+                <p>El acceso distingue a clientes del SuperAdminFarmaLuz mediante la sesión. Las vistas administrativas requieren una sesión válida de superadministrador; los mensajes y operaciones se procesan en el servidor.</p>
+            </section>
+
+            <section class="legal-section">
+                <h2>Consultas de catálogo e inventario</h2>
+                <p><strong>productos</strong> lista el catálogo y admite filtros por texto, nombre, categoría, compuesto o principio activo, presentación, marca, disponibilidad y requisito de récipe. Los resultados se muestran de forma compacta y se limitan para evitar listados extensos.</p>
+                <p><strong>buscar &lt;producto&gt;</strong> presenta los detalles coincidentes: precio, presentación, descripción, existencias, marca, compuesto y si requiere récipe médico. Si no encuentra el producto, puede ofrecer alternativas similares que sí estén disponibles.</p>
+                <p><strong>disponible &lt;producto&gt;</strong> informa las unidades y el estado del inventario. Si el producto requiere récipe, la respuesta lo advierte. Cuando no hay coincidencias disponibles, se pueden sugerir alternativas en existencia.</p>
+            </section>
+
+            <section class="legal-section">
+                <h2>Acceso y auditoría</h2>
+                <p>El panel de monitoreo está reservado al SuperAdminFarmaLuz. Desde allí se revisan conversaciones y estados de clientes, y se realizan las acciones administrativas habilitadas. El inicio y cierre de sesión, bloqueos, ocultación de conversaciones y cambio de contraseña se registran en la tabla interna <strong>BitacoraSuperadmin</strong>.</p>
+                <p>El cambio de contraseña actualiza la credencial y crea su evento de auditoría dentro de una transacción atómica. El registro identifica al superadministrador, la acción, el detalle y la fecha; nunca almacena la contraseña nueva, anterior ni fragmentos de ellas.</p>
+            </section>
+
+            <a class="secondary-link" href="{% url 'chat:admin_dashboard' %}">Volver al panel de administración</a>
+        </article>
+    </main>
+</body>
+</html>

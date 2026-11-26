@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'chat/css/admin_dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'chat/css/admin_dashboard.css' %}?v=2">
 </head>
 <body>
     <main class="dashboard-shell">
@@ -70,6 +70,10 @@
                         <i class="fa-solid fa-eye"></i>
                         <span class="badge-text">Vista de monitoreo</span>
                     </div>
+                    <button type="button" class="logout-link" data-manuals-open aria-haspopup="dialog" aria-controls="manualsOverlay">
+                        <i class="fa-solid fa-book-open"></i>
+                        <span>Manuales</span>
+                    </button>
                     <button type="button" class="logout-link" data-password-open>
                         <i class="fa-solid fa-key"></i>
                         <span>Cambiar contraseña</span>
@@ -140,6 +144,19 @@
                 <button type="button" class="confirm-button accept" data-confirm-accept>Aceptar</button>
             </div>
         </div>
+    </div>
+
+    <div class="confirm-overlay" id="manualsOverlay" hidden aria-hidden="true">
+        <section class="confirm-dialog manuals-dialog" role="dialog" aria-modal="true" aria-labelledby="manualsTitle">
+            <div class="confirm-icon"><i class="fa-solid fa-book-open"></i></div>
+            <h2 id="manualsTitle">Manuales de FarmaLuz</h2>
+            <p>Selecciona el manual que deseas consultar.</p>
+            <div class="confirm-actions">
+                <a class="confirm-button accept" href="{% url 'chat:manual_sistema' %}">Manual del sistema</a>
+                <a class="confirm-button accept" href="{% url 'chat:manual_usuario' %}">Manual de usuario</a>
+                <button type="button" class="confirm-button cancel" data-manuals-close>Cerrar</button>
+            </div>
+        </section>
     </div>
 
     <!-- Modal de éxito -->
@@ -227,7 +244,7 @@
 
     <div hidden>{% csrf_token %}</div>
     {{ conversations|json_script:"conversations-data" }}
-    <script src="{% static 'chat/js/admin_dashboard.js' %}" defer></script>
+    <script src="{% static 'chat/js/admin_dashboard.js' %}?v=2" defer></script>
     <script src="{% static 'chat/js/admin_password_change.js' %}" defer></script>
     <script src="{% static 'chat/js/session_timeout.js' %}" defer data-session-timeout
         data-logout-url="{% url 'chat:logout' %}"

@@ -1,0 +1,62 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmaLuz | Manual de usuario</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'chat/img/favicon.ico' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'chat/css/login.css' %}">
+</head>
+<body>
+    <main class="page-shell">
+        <article class="login-card legal-card">
+            <p class="eyebrow">FarmaLuz · Guía de uso</p>
+            <h1>Manual de usuario</h1>
+            <p class="subtitle">Instrucciones para clientes y para el SuperAdminFarmaLuz.</p>
+
+            <section class="legal-section">
+                <h2>Acciones del usuario normal (cliente)</h2>
+                <h3>Registro e inicio de sesión</h3>
+                <p>En Registro, completa tus datos, verifica tu correo, cédula y teléfono, indica tu fecha de nacimiento y acepta las políticas. La fecha debe corresponder a una persona de al menos 18 años. Después, inicia sesión con la cédula y contraseña registradas. Usa Cerrar sesión al terminar, especialmente en un dispositivo compartido.</p>
+
+                <h3>Conversar con Lucy</h3>
+                <p>Escribe tu consulta en el campo del chat y presiona Enviar o Enter. Tus mensajes y las respuestas nuevas muestran inmediatamente la hora local en formato AM/PM. El historial visible se carga al entrar; si hay mensajes anteriores, puedes desplazarte para cargarlos.</p>
+
+                <h3>Consultar el catálogo</h3>
+                <p>Escribe <strong>productos</strong> para ver un listado compacto con nombres y precios. Puedes refinarlo con filtros, por ejemplo <strong>productos categoria analgesicos</strong>, <strong>productos compuesto ibuprofeno</strong> o <strong>productos disponibles</strong>. El campo compuesto corresponde al principio activo registrado.</p>
+
+                <h3>Buscar un producto específico</h3>
+                <p>Usa <strong>buscar &lt;producto&gt;</strong>, por ejemplo <strong>buscar paracetamol</strong>, para consultar precio, presentación, descripción, existencias, marca, compuesto y requisito de récipe. Cuando no existe una coincidencia, Lucy puede sugerir productos similares disponibles.</p>
+
+                <h3>Disponibilidad y récipe</h3>
+                <p>Usa <strong>disponible &lt;producto&gt;</strong> o pregunta por la disponibilidad para conocer las unidades registradas y si hay stock. Si el producto requiere récipe médico, la respuesta lo indicará claramente. Confirma la disponibilidad antes de acudir a la farmacia; el inventario puede cambiar.</p>
+            </section>
+
+            <section class="legal-section">
+                <h2>Acciones del SuperAdminFarmaLuz</h2>
+                <h3>Acceso y contraseña</h3>
+                <p>Inicia sesión con las credenciales de superadministrador para abrir el panel. El botón Cambiar contraseña permite validar la contraseña actual y guardar una nueva con los requisitos mostrados. Cierra la sesión al terminar.</p>
+
+                <h3>Vista de monitoreo</h3>
+                <p>El panel presenta las conversaciones registradas en modo de solo lectura y permite seleccionar clientes, revisar sus cédulas, patología, mensajes y horas. También muestra el estado de cada usuario para facilitar la revisión de actividad.</p>
+
+                <h3>Gestión administrativa</h3>
+                <p>Usa los controles del panel para bloquear o desbloquear cuentas y para ocultar conversaciones de la lista de monitoreo. La acción de borrar conversación la retira de la vista del panel; no elimina los mensajes almacenados. Las operaciones administrativas clave quedan registradas en la bitácora interna.</p>
+
+                <h3>Manuales</h3>
+                <p>El botón Manuales abre esta guía o el Manual del sistema, que describe la arquitectura y los controles técnicos de FarmaLuz.</p>
+            </section>
+
+            {% if request.session.user_type == 'admin' %}
+            <a class="secondary-link" href="{% url 'chat:admin_dashboard' %}">Volver al panel de administración</a>
+            {% else %}
+            <a class="secondary-link" href="{% url 'chat:bot_chat' %}">Volver al chat</a>
+            {% endif %}
+        </article>
+    </main>
+</body>
+</html>

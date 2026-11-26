@@ -174,7 +174,7 @@ body {
 
 .sidebar-summary {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     gap: 12px;
     padding: 16px 22px;
     border-bottom: 1px solid var(--line);
@@ -602,6 +602,13 @@ body {
 .confirm-button.accept {
     background: linear-gradient(135deg, var(--green), #0d8a59);
     color: #fff;
+}
+
+.manuals-dialog a.confirm-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
 }
 
 .session-timeout-overlay {
@@ -1290,7 +1297,7 @@ body.success-open {
     .sidebar-summary {
         padding: 8px 12px !important;
         gap: 4px !important;
-        grid-template-columns: repeat(2, 1fr) !important;
+        grid-template-columns: 1fr !important;
         flex-shrink: 0 !important;
     }
 
